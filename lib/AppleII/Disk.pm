@@ -5,7 +5,7 @@ package AppleII::Disk;
 #
 # Author: Christopher J. Madsen <ac608@yfn.ysu.edu>
 # Created: 25 Jul 1996
-# Version: $Revision: 0.8 $ ($Date: 1996/08/03 19:30:42 $)
+# Version: $Revision: 0.9 $ ($Date: 1996/08/14 00:54:00 $)
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the same terms as Perl itself.
@@ -35,7 +35,7 @@ require Exporter;
 BEGIN
 {
     # Convert RCS revision number to d.ddd format:
-    ' $Revision: 0.8 $ ' =~ / (\d+)\.(\d{1,3})(\.[0-9.]+)? /
+    ' $Revision: 0.9 $ ' =~ / (\d+)\.(\d{1,3})(\.[0-9.]+)? /
         or die "Invalid version number";
     $VERSION = $VERSION = sprintf("%d.%03d%s",$1,$2,$3);
 } # end BEGIN
@@ -129,6 +129,29 @@ sub pad_block
 } # end AppleII::Disk::pad_block
 
 #---------------------------------------------------------------------
+# Get or set the disk size:
+#
+# Input:
+#   size:  The number of blocks in the disk image
+#          If SIZE is omitted, the disk size is not changed
+#
+# Returns:
+#   The number of blocks in the disk image
+
+sub blocks
+{
+    my $self = shift;
+
+    if (@_) {
+        $self->{maxlen} = $_[0] * 0x200;
+        carp "Disk image contains more than $_[0] blocks"
+            if $self->{maxlen} < $self->{actlen};
+    }
+
+    int($self->{maxlen} / 0x200);
+} # end AppleII::Disk::blocks
+
+#---------------------------------------------------------------------
 # Read a ProDOS block:
 #
 # Input:
@@ -138,6 +161,8 @@ sub pad_block
 #   A 512 byte block
 #
 # Implemented in AppleII::Disk::ProDOS & AppleII::Disk::DOS33
+#
+# sub read_block
 
 #---------------------------------------------------------------------
 # Read a series of ProDOS blocks:
@@ -169,6 +194,8 @@ sub read_blocks
 #   A 256 byte sector
 #
 # Implemented in AppleII::Disk::ProDOS & AppleII::Disk::DOS33
+#
+# sub read_sector
 
 #---------------------------------------------------------------------
 # Write a ProDOS block:
@@ -180,6 +207,8 @@ sub read_blocks
 #     If PAD is omitted, an error is generated if data is not 512 bytes
 #
 # Implemented in AppleII::Disk::ProDOS & AppleII::Disk::DOS33
+#
+# sub write_block
 
 #---------------------------------------------------------------------
 # Write a series of ProDOS blocks:
@@ -210,6 +239,8 @@ sub write_blocks
 #     If PAD is omitted, an error is generated if data is not 256 bytes
 #
 # Implemented in AppleII::Disk::ProDOS & AppleII::Disk::DOS33
+#
+# sub write_sector
 
 #=====================================================================
 package AppleII::Disk::ProDOS;
@@ -406,6 +437,124 @@ sub write_block
 1;
 
 __END__
+
+=head1 NAME
+
+AppleII::Disk - Block-level access to Apple II disk image files
+
+=head1 SYNOPSIS
+
+    use AppleII::Disk;
+    my $disk = AppleII::Disk->new('image.dsk');
+    my $data = $disk->read_block(1);  # Read block 1
+    $disk->write_block(1, $data);     # And write it back :-)
+
+=head1 DESCRIPTION
+
+C<AppleII::Disk> provides block-level access to the Apple II disk
+image files used by most Apple II emulators.  (For information about
+Apple II emulators, try the Apple II Emulator Page at
+L<http://www.ecnet.net/users/mumbv/pages/apple2.shtml>.)  For a
+higher-level interface, use the L<AppleII::ProDOS> module.
+
+C<AppleII::Disk> provides the following methods:
+
+=over 4
+
+=item $disk = AppleII::Disk->new($filename, [$mode])
+
+Constructs a new C<AppleII::Disk> object.  C<$filename> is the name of
+the image file.  The optional C<$mode> is a string specifying how to
+open the image.  It can consist of the following characters (I<case
+sensitive>):
+
+    r  Allow reads (this is actually ignored; you can always read)
+    w  Allow writes
+    d  Disk image is in DOS 3.3 order
+    p  Disk image is in ProDOS order
+
+If you don't specify 'd' or 'p', then the format is guessed from the
+filename.  '.PO' and '.HDV' files are ProDOS order, and anything else
+is assumed to be DOS 3.3 order.
+
+If you specify 'w' to allow writes, then the image file is created if
+it doesn't already exist.
+
+=item $size = $disk->blocks([$newsize])
+
+Gets or sets the size of the disk in blocks.  C<$newsize> is the new
+size of the disk in blocks.  If C<$newsize> is omitted, then the size
+is not changed.  Returns the size of the disk image in blocks.
+
+This refers to the I<logical> size of the disk image.  Blocks outside
+the physical size of the disk image read as all zeros.  Writing to
+such a block will expand the image file.
+
+When you create a new image file, you must use C<blocks> to set its
+size before writing to it.
+
+=item $contents = $disk->read_block($block)
+
+Reads one block from the disk image.  C<$block> is the block number to
+read.
+
+=item $contents = $disk->read_blocks(\@blocks)
+
+Reads a sequence of blocks from the disk image.  C<\@blocks> is a
+reference to an array of block numbers.
+
+=item $contents = $disk->read_sector($track, $sector)
+
+Reads one sector from the disk image.  C<$track> is the track number,
+and C<$sector> is the DOS 3.3 logical sector number.  This is
+currently implemented only for DOS 3.3 order images.
+
+=item $disk->write_block($block, $contents, [$pad])
+
+Writes one block to the disk image.  C<$block> is the block number to
+write.  C<$contents> is the data to write.  The optional C<$pad> is a
+character to pad the block with (out to 512 bytes).  If C<$pad> is
+omitted or null, then C<$contents> must be exactly 512 bytes.
+
+=item $disk->write_blocks(\@blocks, $contents, [$pad])
+
+Writes a sequence of blocks to the disk image.  C<\@blocks> is a
+reference to an array of block numbers to write.  C<$contents> is the
+data to write.  It is broken up into 512 byte chunks and written to
+the blocks.  The optional C<$pad> is a character to pad the data with
+(out to a multiple of 512 bytes).  If C<$pad> is omitted or null, then
+C<$contents> must be exactly 512 bytes times the number of blocks.
+
+=item $disk->write_sector($track, $sector, $contents, [$pad])
+
+Writes one sector to the disk image.  C<$track> is the track number,
+and C<$sector> is the DOS 3.3 logical sector number.  C<$contents> is
+the data to write.  The optional C<$pad> is a character to pad the
+sector with (out to 256 bytes).  If C<$pad> is omitted or null, then
+C<$contents> must be exactly 256 bytes.  This is currently implemented
+only for DOS 3.3 order images.
+
+=item $padded = AppleII::Disk->pad_block($data, [$pad, [$length]])
+
+Pads C<$data> out to C<$length> bytes with C<$pad>.  Returns the
+padded string; the original is not altered.  Dies if C<$data> is
+longer than C<$length>.  The default C<$pad> is "\0", and the default
+C<$length> is 512 bytes.
+
+If C<$pad> is the null string (not undef), just checks to make sure
+that C<$data> is exactly C<$length> bytes and returns the original
+string.  Dies if C<$data> is not exactly C<$length> bytes.
+
+C<pad_block> can be called either as C<AppleII::Disk-E<gt>pad_block>
+or C<$disk-E<gt>pad_block>.
+
+=back
+
+=head1 AUTHOR
+
+Christopher J. Madsen E<lt>F<ac608@yfn.ysu.edu>E<gt>
+
+=cut
 
 # Local Variables:
 # tmtrack-file-task: "AppleII::Disk.pm"
