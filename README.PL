@@ -1,6 +1,6 @@
 #!perl
 #---------------------------------------------------------------------
-# $Id: README.PL,v 1.2 1996/08/13 01:26:41 Madsen Exp $
+# $Id: README.PL,v 1.3 1996/08/13 04:27:16 Madsen Exp $
 # Copyright 1996 Christopher J. Madsen
 #
 # Create the README file for LibA2
@@ -25,6 +25,8 @@ a recent backup handy.  Wait sixty minutes before swimming.
 
 All this having been said, I'm not aware of any serious bugs in LibA2
 (besides the ones listed in the BUGS section below).  Good luck!
+Please send comments, questions, bug reports, and patches to me.
+You'll find my email address at the end of this file.
 
 EOT
 #'
