@@ -5,7 +5,7 @@ package AppleII::Disk;
 #
 # Author: Christopher J. Madsen <ac608@yfn.ysu.edu>
 # Created: 25 Jul 1996
-# Version: $Revision: 0.4 $ ($Date: 1996/07/28 18:00:17 $)
+# Version: $Revision: 0.5 $ ($Date: 1996/07/29 21:56:50 $)
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the same terms as Perl itself.
@@ -35,7 +35,7 @@ require Exporter;
 BEGIN
 {
     # Convert RCS revision number to d.ddd format:
-    ' $Revision: 0.4 $ ' =~ / (\d+)\.(\d{1,3})(\.[0-9.]+)? /
+    ' $Revision: 0.5 $ ' =~ / (\d+)\.(\d{1,3})(\.[0-9.]+)? /
         or die "Invalid version number";
     $VERSION = $VERSION = sprintf("%d.%03d%s",$1,$2,$3);
 } # end BEGIN
@@ -60,6 +60,8 @@ BEGIN
 #     May contain any of the following characters (case sensitive):
 #       r  Allow reads (this is actually ignored; you can always read)
 #       w  Allow writes
+#       d  Disk image is in DOS 3.3 order (default)
+#       p  Disk image is in ProDOS order
 
 sub new
 {
@@ -84,6 +86,9 @@ sub new
     $self->{file}   = $file;
     $self->{actlen} = (stat $file)[7]; # Get real size of file
     $self->{maxlen} = $self->{actlen};
+
+    $type = 'AppleII::Disk::ProDOS' if $mode =~ /p/;
+    $type = 'AppleII::Disk::DOS33'  if $type eq 'AppleII::Disk'; # Assume DOS
     bless $self, $type;
 } # end AppleII::Disk::new
 
