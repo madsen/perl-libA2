@@ -5,7 +5,7 @@ package AppleII::ProDOS;
 #
 # Author: Christopher J. Madsen <ac608@yfn.ysu.edu>
 # Created: 26 Jul 1996
-# Version: $Revision: 0.5 $ ($Date: 1996/07/30 21:17:16 $)
+# Version: $Revision: 0.6 $ ($Date: 1996/07/31 03:16:25 $)
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the same terms as Perl itself.
@@ -28,7 +28,7 @@ use vars qw(@ISA @EXPORT @EXPORT_OK $VERSION);
 require Exporter;
 @ISA = qw(Exporter);
 @EXPORT = qw();
-@EXPORT_OK = qw(packDate packName parseName parseDate);
+@EXPORT_OK = qw(packDate packName parseDate parseName parseType shortDate);
 
 #=====================================================================
 # Package Global Variables:
@@ -36,19 +36,45 @@ require Exporter;
 BEGIN
 {
     # Convert RCS revision number to d.ddd format:
-    ' $Revision: 0.5 $ ' =~ / (\d+)\.(\d{1,3})(\.[0-9.]+)? /
+    ' $Revision: 0.6 $ ' =~ / (\d+)\.(\d{1,3})(\.[0-9.]+)? /
         or die "Invalid version number";
     $VERSION = $VERSION = sprintf("%d.%03d%s",$1,$2,$3);
 } # end BEGIN
+
+# Filetype list from About Apple II File Type Notes -- June 1992
+my @filetypes = qw(
+    NON BAD PCD PTX TXT PDA BIN FNT FOT BA3 DA3 WPF SOS $0D $0E DIR
+    RPD RPI AFD AFM AFR SCL PFS $17 $18 ADB AWP ASP $1C $1D $1E $1F
+    TDM $21 $22 $23 $24 $25 $26 $27 $28 $29 8SC 8OB 8IC 8LD P8C $2F
+    $30 $31 $32 $33 $34 $35 $36 $37 $38 $39 $3A $3B $3C $3D $3E $3F
+    DIC $41 FTD $43 $44 $45 $46 $47 $48 $49 $4A $4B $4C $4D $4E $4F
+    GWP GSS GDB DRW GDP HMD EDU STN HLP COM CFG ANM MUM ENT DVU FIN
+    $60 $61 $62 $63 $64 $65 $66 $67 $68 $69 $6A BIO $6C TDR PRE HDV
+    $70 $71 $72 $73 $74 $75 $76 $77 $78 $79 $7A $7B $7C $7D $7E $7F
+    $80 $81 $82 $83 $84 $85 $86 $87 $88 $89 $8A $8B $8C $8D $8E $8F
+    $90 $91 $92 $93 $94 $95 $96 $97 $98 $99 $9A $9B $9C $9D $9E $9F
+    WP  $A1 $A2 $A3 $A4 $A5 $A6 $A7 $A8 $A9 $AA GSB TDF BDF $AE $AF
+    SRC OBJ LIB S16 RTL EXE PIF TIF NDA CDA TOL DVR LDF FST $BE DOC
+    PNT PIC ANI PAL $C4 OOG SCR CDV FON FND ICN $CB $CC $CD $CE $CF
+    $D0 $D1 $D2 $D3 $D4 MUS INS MDI SND $D9 $DA DBM $DC $DD $DE $DF
+    LBR $E1 ATK $E3 $E4 $E5 $E6 $E7 $E8 $E9 $EA $EB $EC $ED R16 PAS
+    CMD $F1 $F2 $F3 $F4 $F5 $F6 $F7 $F8 OS  INT IVR BAS VAR REL SYS
+); # end filetypes
 
 #=====================================================================
 # package AppleII::ProDOS:
 #
 # Member Variables:
-#   bitmap:    An AppleII::ProDOS::Bitmap containing the volume bitmap
-#   disk:      An AppleII::Disk
-#   diskSize:  The number of blocks on the disk
-#   volume:    The volume name of the disk
+#   bitmap:
+#     An AppleII::ProDOS::Bitmap containing the volume bitmap
+#   directories:
+#     Array of AppleII::ProDOS::Directory starting with the volume dir
+#   disk:
+#     The AppleII::Disk we are accessing
+#   diskSize:
+#     The number of blocks on the disk
+#   volume:
+#     The volume name of the disk
 #---------------------------------------------------------------------
 # Constructor:
 #
@@ -83,10 +109,42 @@ sub new
     my ($startBlock, $blocks) = unpack('x39v2',$volDir);
 
     $self->{bitmap} = AppleII::ProDOS::Bitmap->new($disk,$startBlock,$blocks);
+    $self->{directories} = [ AppleII::ProDOS::Directory->new($disk,2) ];
     $self->{diskSize} = $blocks;
 
     bless $self, $type;
 } # end AppleII::ProDOS::new
+
+#---------------------------------------------------------------------
+sub catalog
+{
+    shift->{directories}[-1]->catalog(@_);
+} # end AppleII::ProDOS::catalog
+
+#---------------------------------------------------------------------
+# Return or change the current directory:
+
+sub directory
+{
+    my ($self, $newdir) = @_;
+
+    if ($newdir) {
+        # Change directory:
+        my @directories = @{$self->{directories}};
+        pop @directories while $#directories and $newdir =~ s'^\.\.(?:/|$)'';#'
+        my $dir;
+        foreach $dir (split(/\//, $newdir)) {
+            my $entry = @directories[-1]->findEntry($dir)
+                or croak("No such directory `$_[1]'");
+            push @directories, AppleII::ProDOS::Directory->new(
+                $self->{disk},$entry->{block},$directories[-1],$entry->{num}
+            );
+        }
+        $self->{directories} = \@directories;
+    } # end if changing directory
+
+    '/'.join('/',map { $_->{name} } @{$self->{directories}}).'/';
+} # end AppleII::ProDOS::directory
 
 #---------------------------------------------------------------------
 # Convert a time to ProDOS format:
@@ -132,10 +190,12 @@ sub packName
 #
 # Returns:
 #   Standard time for use with gmtime (not localtime)
+#   undef if no date
 
 sub parseDate
 {
     my ($date, $minute, $hour) = unpack('vC2', $_[0]);
+    return undef unless $date;
     my ($year, $month, $day) = ($date>>9, (($date>>5) & 0x0F), $date & 0x1F);
     mktime(0, $minute, $hour, $day, $month-1, $year);
 } # end AppleII::ProDOS::parseDate
@@ -156,6 +216,43 @@ sub parseName
     my $typeLen = ord $_[0];
     ($typeLen >> 4, substr($_[0],1,$typeLen & 0x0F));
 } # end AppleII::ProDOS::parseName
+
+#---------------------------------------------------------------------
+# Convert a filetype to its abbreviation:
+#
+# This is NOT a method; it's just a regular subroutine.
+#
+# Input:
+#   type:  The filetype to convert (0-255)
+#
+# Returns:
+#   The abbreviation for the filetype
+
+sub parseType
+{
+    $filetypes[$_[0]];
+} # end AppleII::ProDOS::parseType
+
+#---------------------------------------------------------------------
+# Convert a date & time to a short string:
+#
+# This is NOT a method; it's just a regular subroutine.
+#
+# Input:
+#   dateField:  The date/time field
+#
+# Returns:
+#   "dd-Mmm-yy hh:mm" or "<No Date>      "
+
+my @months = qw(Jan Feb Mar Apr May Jun Jul Aug Sep Oct Nov Dec);
+
+sub shortDate
+{
+    my ($date, $minute, $hour) = unpack('vC2', $_[0]);
+    return "<No Date>      " unless $date;
+    my ($year, $month, $day) = ($date>>9, (($date>>5) & 0x0F), $date & 0x1F);
+    sprintf('%2d-%s-%02d %2d:%02d',$day,$months[$month-1],$year,$hour,$minute);
+} # end AppleII::ProDOS::shortDate
 
 #=====================================================================
 package AppleII::ProDOS::Bitmap;
@@ -311,7 +408,7 @@ package AppleII::ProDOS::Directory;
 #   parentNum:  Our entry number within the parent directory
 #---------------------------------------------------------------------
 
-AppleII::ProDOS->import(qw(packName parseName));
+AppleII::ProDOS->import(qw(packName parseName shortDate));
 use Carp;
 use strict;
 
@@ -365,6 +462,40 @@ sub addEntry
     $entry->{num} = $i+1;
     splice @$entries, $i, 0, $entry;
 } # end AppleII::ProDOS::Directory::addEntry
+
+#---------------------------------------------------------------------
+# Return the catalog:
+
+sub catalog
+{
+    my $self = shift;
+    my $result =
+        sprintf("%-15s%s %s%8s  %-14s  %-14s %s\n",
+                qw(Filename Type Blocks Size Created Modified Auxtype));
+    my $entry;
+    foreach $entry (@{$self->{entries}}) {
+        $result .= sprintf("%-15s %-3s %5d %8d %s %s  \$%04X\n",
+                           $entry->{name}, $entry->shortType,
+                           @{$entry}{qw(blocks size)},
+                           shortDate($entry->{created}),
+                           shortDate($entry->{modified}),
+                           $entry->{auxtype});
+    }
+    $result;
+} # end AppleII::ProDOS::Directory::catalog
+
+#---------------------------------------------------------------------
+# Find an entry:
+#
+# Input:
+#   filename:  The filename to match
+
+sub findEntry
+{
+    my ($self, $filename) = @_;
+    $filename = uc $filename;
+    (grep {uc($_->{name}) eq $filename} @{$self->{entries}})[0];
+} # end AppleII::ProDOS::Directory::findEntry
 
 #---------------------------------------------------------------------
 # Read directory from disk:
@@ -471,7 +602,7 @@ package AppleII::ProDOS::DirEntry;
 #   modified: The date/time of last modification
 #   num:      The entry number of this entry
 #---------------------------------------------------------------------
-AppleII::ProDOS->import(qw(packDate packName parseName));
+AppleII::ProDOS->import(qw(packDate packName parseName parseType));
 use integer;
 use strict;
 
@@ -522,6 +653,14 @@ sub packed
     $data .= $self->{modified};
     $data .= pack('v',$keyBlock);
 } # end AppleII::ProDOS::DirEntry::packed
+
+#---------------------------------------------------------------------
+# Return the filetype as a string:
+
+sub shortType
+{
+    parseType(shift->{type});
+} # end AppleII::ProDOS::DirEntry::shortType
 
 #=====================================================================
 package AppleII::ProDOS::Index;
