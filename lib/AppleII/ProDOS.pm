@@ -5,7 +5,7 @@ package AppleII::ProDOS;
 #
 # Author: Christopher J. Madsen <ac608@yfn.ysu.edu>
 # Created: 26 Jul 1996
-# Version: $Revision: 0.17 $ ($Date: 1996/08/11 04:10:39 $)
+# Version: $Revision: 0.18 $ ($Date: 1996/08/12 17:22:20 $)
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the same terms as Perl itself.
@@ -46,7 +46,7 @@ my %vol_fields = (
 BEGIN
 {
     # Convert RCS revision number to d.ddd format:
-    ' $Revision: 0.17 $ ' =~ / (\d+)\.(\d{1,3})(\.[0-9.]+)? /
+    ' $Revision: 0.18 $ ' =~ / (\d+)\.(\d{1,3})(\.[0-9.]+)? /
         or die "Invalid version number";
     $VERSION = $VERSION = sprintf("%d.%03d%s",$1,$2,$3);
 } # end BEGIN
@@ -1174,6 +1174,7 @@ my %fil_fields = (
 sub new
 {
     my ($type, $name, $data) = @_;
+    a2_croak("Invalid name `$name'") unless valid_name($name);
     my $self = {
         access     => 0xE3,
         auxtype    => 0,
