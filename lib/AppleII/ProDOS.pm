@@ -5,7 +5,7 @@ package AppleII::ProDOS;
 #
 # Author: Christopher J. Madsen <ac608@yfn.ysu.edu>
 # Created: 26 Jul 1996
-# Version: $Revision: 0.19 $ ($Date: 1996/08/14 00:55:25 $)
+# Version: $Revision: 0.20 $ ($Date: 1996/08/14 01:41:39 $)
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the same terms as Perl itself.
@@ -46,7 +46,7 @@ my %vol_fields = (
 BEGIN
 {
     # Convert RCS revision number to d.ddd format:
-    ' $Revision: 0.19 $ ' =~ / (\d+)\.(\d{1,3})(\.[0-9.]+)? /
+    ' $Revision: 0.20 $ ' =~ / (\d+)\.(\d{1,3})(\.[0-9.]+)? /
         or die "Invalid version number";
     $VERSION = $VERSION = sprintf("%d.%03d%s",$1,$2,$3);
 } # end BEGIN
@@ -109,18 +109,19 @@ sub new
     my $disk = AppleII::Disk->new($filename, ($mode || '') . 'rw');
     $disk->blocks($diskSize);
 
+    my $bitmap = AppleII::ProDOS::Bitmap->new($disk,6,$diskSize);
+
     my $self = {
-        bitmap =>
-            AppleII::ProDOS::Bitmap->new($disk,6,$diskSize),
+        bitmap      => $bitmap,
         directories => [ AppleII::ProDOS::Directory->new(
-            $name, $disk, [2 .. 5], undef, undef, 6, $diskSize
+            $name, $disk, [2 .. 5], $bitmap
         ) ],
         disk   => $disk,
         name   => $name,
         _permitted => \%vol_fields,
     };
 
-    $self->{bitmap}->write_disk;
+    $bitmap->write_disk;
     $self->{directories}[0]->write_disk;
 
     bless $self, $type;
@@ -163,7 +164,9 @@ sub open
     $self->{bitmap} =
       AppleII::ProDOS::Bitmap->open($disk,$startBlock,$diskSize);
 
-    $self->{directories} = [ AppleII::ProDOS::Directory->open($disk,2) ];
+    $self->{directories} = [
+        AppleII::ProDOS::Directory->open($disk, 2, $self->{bitmap})
+    ];
     $self->{diskSize} = $diskSize;
 
     bless $self, $type;
@@ -204,8 +207,7 @@ sub get_file
 #---------------------------------------------------------------------
 sub new_dir
 {
-    my $self = shift;
-    $self->{directories}[-1]->new_dir($self->{bitmap}, @_);
+    shift->{directories}[-1]->new_dir(@_);
 } # end AppleII::ProDOS::new_dir
 
 #---------------------------------------------------------------------
@@ -242,8 +244,7 @@ sub path
 #---------------------------------------------------------------------
 sub put_file
 {
-    my $self = shift;
-    $self->{directories}[-1]->put_file($self->{bitmap}, @_);
+    shift->{directories}[-1]->put_file(@_);
 } # end AppleII::ProDOS::put_file
 
 #---------------------------------------------------------------------
@@ -594,6 +595,14 @@ sub read_disk
 } # end AppleII::ProDOS::Bitmap::read_disk
 
 #---------------------------------------------------------------------
+# Return the block number where the bitmap begins:
+
+sub start_block
+{
+    shift->{blocks}[0];
+} # end AppleII::ProDOS::Bitmap::start_block
+
+#---------------------------------------------------------------------
 # Write bitmap to disk:
 
 sub write_disk
@@ -608,6 +617,8 @@ package AppleII::ProDOS::Directory;
 # Member Variables:
 #   access:
 #     The access attributes for this directory
+#   bitmap:
+#     The AppleII::ProDOS::Bitmap for the disk
 #   blocks:
 #     The list of blocks used by this directory
 #   disk:
@@ -622,10 +633,6 @@ package AppleII::ProDOS::Directory;
 #     0xF for a volume directory, 0xE for a subdirectory
 #   version:
 #     The contents of the VERSION & MIN_VERSION (2 byte string)
-#
-# For the volume directory:
-#   bitmap:    The block number where the volume bitmap begins
-#   diskSize:  The number of blocks on the disk
 #
 # For subdirectories:
 #   parent:     The block number in the parent directory where our entry is
@@ -651,27 +658,25 @@ my %dir_fields = (
 #---------------------------------------------------------------------
 # Constructor for creating a new directory:
 #
-# Either parent & parentNum or bitmap & diskSize must be
-# specified, but not both.
+# You must supply parent & parentNum when creating a subdirectory.
 #
 # Input:
 #   name:       The name of the new directory
 #   disk:       An AppleII::Disk
 #   blocks:     A block number or array of block numbers for the directory
+#   bitmap:     The AppleII::ProDOS::Bitmap for the disk
 #   parent:     The block number in the parent directory where our entry is
 #   parentNum:  Our entry number within that block of the parent directory
-#   bitmap:     The block number where the volume bitmap begins
-#   diskSize:   The size of the disk in blocks
 
 sub new
 {
-    my ($type, $name, $disk, $blocks,
-        $parent, $parentNum, $bitmap, $diskSize) = @_;
+    my ($type, $name, $disk, $blocks, $bitmap, $parent, $parentNum) = @_;
 
     a2_croak("Invalid name `$name'") unless valid_name($name);
 
     my $self = {
         access  => 0xE3,
+        bitmap  => $bitmap,
         blocks  => $blocks,
         disk    => $disk,
         entries => [],
@@ -686,9 +691,7 @@ sub new
         $self->{parent}    = $parent;
         $self->{parentNum} = $parentNum;
     } else {
-        $self->{type}     = 0xF; # Volume directory
-        $self->{bitmap}   = $bitmap;
-        $self->{diskSize} = $diskSize;
+        $self->{type} = 0xF;    # Volume directory
     } # end else volume directory
 
     bless $self, $type;
@@ -700,11 +703,13 @@ sub new
 # Input:
 #   disk:       An AppleII::Disk
 #   block:      The block number where the directory begins
+#   bitmap:     The AppleII::ProDOS::Bitmap for the disk
 
 sub open
 {
-    my ($type, $disk, $block) = @_;
+    my ($type, $disk, $block, $bitmap) = @_;
     my $self = {
+        bitmap     => $bitmap,
         disk       => $disk,
         _permitted => \%dir_fields,
     };
@@ -851,21 +856,20 @@ sub true     { 1 }                   # Accept anything
 # Create a subdirectory:
 #
 # Input:
-#   bitmap:  The AppleII::ProDOS::Bitmap to allocate space from
 #   dir:     The name of the subdirectory to create
 #   size:    The number of entries the directory should hold
 #            The default is to create a 1 block directory
 
 sub new_dir
 {
-    my ($self, $bitmap, $dir, $size) = @_;
+    my ($self, $dir, $size) = @_;
 
     a2_croak("Invalid name `$dir'") unless valid_name($dir);
 
     $size = 1 unless $size;
     $size = int(($size + 0xD) / 0xD); # Compute # of blocks (+ dir header)
 
-    my @blocks = $bitmap->get_blocks($size)
+    my @blocks = $self->{bitmap}->get_blocks($size)
         or a2_croak("Not enough free space");
 
     eval {
@@ -879,18 +883,18 @@ sub new_dir
 
         $self->add_entry($entry);
         my $subdir = AppleII::ProDOS::Directory->new(
-            $dir, $self->{disk}, \@blocks,
+            $dir, $self->{disk}, \@blocks, $self->{bitmap},
             $self->{blocks}[int($entry->num / 0xD)], int($entry->num % 0xD)+1
         );
 
         $subdir->write_disk;
         $self->write_disk;
-        $bitmap->write_disk;
+        $self->{bitmap}->write_disk;
     }; # end eval
     if ($@) {
         my $error = $@;         # Clean up after error
         $self->read_disk;
-        $bitmap->read_disk;
+        $self->{bitmap}->read_disk;
         die $error;
     } # end if error while creating directory
 } # end AppleII::ProDOS::Directory::new_dir
@@ -911,32 +915,32 @@ sub open_dir
     my $entry = $self->find_entry($dir)
         or a2_croak("No such directory `$dir'");
 
-    AppleII::ProDOS::Directory->open($self->{disk}, $entry->block);
+    AppleII::ProDOS::Directory->open($self->{disk}, $entry->block,
+                                     $self->{bitmap});
 } # end AppleII::ProDOS::Directory::open_dir
 
 #---------------------------------------------------------------------
 # Add a new file to the directory:
 #
 # Input:
-#   bitmap:  The AppleII::ProDOS::Bitmap for the disk
 #   file:    The AppleII::ProDOS::File to add
 
 sub put_file
 {
-    my ($self, $bitmap, $file) = @_;
+    my ($self, $file) = @_;
 
     eval {
-        $file->allocate_space($bitmap);
+        $file->allocate_space($self->{bitmap});
         $self->add_entry($file);
         $file->write_disk($self->{disk});
         $self->write_disk;
-        $bitmap->write_disk;
+        $self->{bitmap}->write_disk;
     };
     if ($@) {
         my $error = $@;
         # Clean up after failure:
         $self->read_disk;
-        $bitmap->read_disk;
+        $self->{bitmap}->read_disk;
         die $error;
     }
 } # end AppleII::ProDOS::Directory::put_file
@@ -970,11 +974,7 @@ sub read_disk
                     # For subdirectory, read parent pointers
                     @{$self}{qw(parent parentNum)} =
                         unpack('vC',substr($data,0x27-4,3));
-                } else {
-                    # For volume directory, read bitmap location and disk size:
-                    @{$self}{qw(bitmap diskSize)} =
-                        unpack('v2',substr($data,0x27-4,4));
-                } # end else volume directory
+                } # end if subdirectory
             } elsif ($type) {
                 # File entry
                 push @entries, AppleII::ProDOS::DirEntry->new($entry, $data);
@@ -1026,7 +1026,8 @@ sub write_disk
                 $data .= "\x27\x0D"; # Entry length, entries per block
                 $data .= pack('v',$#entries+1);
                 if ($self->{type} == 0xF) {
-                    $data .= pack('v2',@{$self}{'bitmap','diskSize'});
+                    my $bitmap = $self->{bitmap};
+                    $data .= pack('v2',$bitmap->start_block,$bitmap->diskSize);
                 } else {
                     $data .= pack('vCC',@{$self}{'parent','parentNum'},
                                   0x27); # Parent entry length
