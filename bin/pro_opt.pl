@@ -1,6 +1,6 @@
 #!perl
 #---------------------------------------------------------------------
-# $Id: pro_opt.pl,v 0.2 1996/08/12 21:16:16 Madsen Exp $
+# $Id: pro_opt.pl,v 0.3 1996/08/19 04:50:18 Madsen Exp $
 # Copyright 1996 Christopher J. Madsen
 #
 # This program is free software; you can redistribute it and/or modify
@@ -14,7 +14,7 @@
 # Optimize a ProDOS disk image
 #---------------------------------------------------------------------
 
-use AppleII::ProDOS 0.018;
+use AppleII::ProDOS 0.025;
 use strict;
 
 my ($file1, $file2) = @ARGV;
@@ -42,8 +42,8 @@ sub mirror
         if ($entry->short_type eq 'DIR') {
             print "Creating $path" . $entry->name . "\n";
             $vol1->path($entry->name);
-            $vol2->new_dir($entry->name, scalar $vol1->dir->entries);
-            my $newEntry = $vol2->dir->find_entry($entry->name);
+            my $newEntry = $vol2->new_dir($entry->name,
+                                          scalar $vol1->dir->entries);
             $newEntry->created($entry->created);
             $newEntry->modified($entry->modified);
             $vol2->dir->write_disk;
@@ -54,7 +54,11 @@ sub mirror
             $vol2->path('..');
         } else {
             print "Copying $path" . $entry->name . "\n";
-            $vol2->put_file($vol1->get_file($entry->name));
+            $vol2->put_file($vol1->get_file($entry));
         }
     }
 } # end mirror
+
+# Local Variables:
+# tmtrack-file-task: "LibA2: pro_opt.pl"
+# End:
