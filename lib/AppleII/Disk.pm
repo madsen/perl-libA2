@@ -5,7 +5,7 @@ package AppleII::Disk;
 #
 # Author: Christopher J. Madsen <ac608@yfn.ysu.edu>
 # Created: 25 Jul 1996
-# Version: $Revision: 0.6 $ ($Date: 1996/07/31 05:47:50 $)
+# Version: $Revision: 0.7 $ ($Date: 1996/08/02 15:43:51 $)
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the same terms as Perl itself.
@@ -35,7 +35,7 @@ require Exporter;
 BEGIN
 {
     # Convert RCS revision number to d.ddd format:
-    ' $Revision: 0.6 $ ' =~ / (\d+)\.(\d{1,3})(\.[0-9.]+)? /
+    ' $Revision: 0.7 $ ' =~ / (\d+)\.(\d{1,3})(\.[0-9.]+)? /
         or die "Invalid version number";
     $VERSION = $VERSION = sprintf("%d.%03d%s",$1,$2,$3);
 } # end BEGIN
@@ -187,13 +187,14 @@ sub readBlocks
 # Input:
 #   blocks:  An array of the block numbers to write to
 #   data:    The data to write (must be exactly the right size)
+#   pad:     A character to pad the last block with (optional)
 
 sub writeBlocks
 {
-    my ($self, $blocks, $data) = @_;
+    my ($self, $blocks, $data, $pad) = @_;
     my $index = 0;
     foreach (@$blocks) {
-        $self->writeBlock($_, substr($data, $index, 0x200));
+        $self->writeBlock($_, substr($data, $index, 0x200), $pad);
         $index += 0x200;
     }
 } # end AppleII::Disk::writeBlocks
