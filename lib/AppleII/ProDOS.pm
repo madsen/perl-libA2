@@ -5,7 +5,7 @@ package AppleII::ProDOS;
 #
 # Author: Christopher J. Madsen <ac608@yfn.ysu.edu>
 # Created: 26 Jul 1996
-# Version: $Revision: 0.16 $ ($Date: 1996/08/05 06:39:10 $)
+# Version: $Revision: 0.17 $ ($Date: 1996/08/11 04:10:39 $)
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the same terms as Perl itself.
@@ -26,11 +26,18 @@ use strict;
 use vars qw(@ISA @EXPORT @EXPORT_OK $VERSION);
 
 require Exporter;
-@ISA = qw(Exporter);
+@ISA = qw(AppleII::ProDOS::Members Exporter);
 @EXPORT = qw();
 @EXPORT_OK = qw(
     pack_date pack_name parse_date parse_name parse_type shell_wc
     short_date valid_date valid_name a2_croak
+);
+
+my %vol_fields = (
+    bitmap   => undef,
+    disk     => undef,
+    diskSize => undef,
+    name     => undef,
 );
 
 #=====================================================================
@@ -39,7 +46,7 @@ require Exporter;
 BEGIN
 {
     # Convert RCS revision number to d.ddd format:
-    ' $Revision: 0.16 $ ' =~ / (\d+)\.(\d{1,3})(\.[0-9.]+)? /
+    ' $Revision: 0.17 $ ' =~ / (\d+)\.(\d{1,3})(\.[0-9.]+)? /
         or die "Invalid version number";
     $VERSION = $VERSION = sprintf("%d.%03d%s",$1,$2,$3);
 } # end BEGIN
@@ -76,13 +83,13 @@ my @filetypes = qw(
 #     The AppleII::Disk we are accessing
 #   diskSize:
 #     The number of blocks on the disk
-#   volume:
+#   name:
 #     The volume name of the disk
 #---------------------------------------------------------------------
 # Constructor for creating a new disk:
 #
 # Input:
-#   volume:
+#   name:
 #     The volume name for the new disk
 #   diskSize:
 #     The size of the disk in blocks
@@ -95,9 +102,9 @@ my @filetypes = qw(
 
 sub new
 {
-    my ($type, $volume, $diskSize, $filename, $mode) = @_;
+    my ($type, $name, $diskSize, $filename, $mode) = @_;
 
-    a2_croak("Invalid name `$volume'") unless valid_name($volume);
+    a2_croak("Invalid name `$name'") unless valid_name($name);
 
     my $disk = AppleII::Disk->new($filename, ($mode || '') . 'rw');
     $disk->{maxlen} = 0x200 * $diskSize; # FIXME
@@ -106,10 +113,11 @@ sub new
         bitmap =>
             AppleII::ProDOS::Bitmap->new($disk,6,$diskSize),
         directories => [ AppleII::ProDOS::Directory->new(
-            $volume, $disk, [2 .. 5], undef, undef, 6, $diskSize
+            $name, $disk, [2 .. 5], undef, undef, 6, $diskSize
         ) ],
         disk   => $disk,
-        volume => $volume,
+        name   => $name,
+        _permitted => \%vol_fields,
     };
 
     $self->{bitmap}->write_disk;
@@ -139,14 +147,14 @@ sub new
 sub open
 {
     my ($type, $disk, $mode) = @_;
-    my $self = {};
+    my $self = { _permitted => \%vol_fields };
     $disk = AppleII::Disk->new($disk, $mode) unless ref $disk;
     $self->{disk} = $disk;
 
     my $volDir = $disk->read_block(2);
 
     my $storageType;
-    ($storageType, $self->{volume}) = parse_name(substr($volDir,0x04,16));
+    ($storageType, $self->{name}) = parse_name(substr($volDir,0x04,16));
     croak('This is not a ProDOS disk') unless $storageType == 0xF;
 
     my ($startBlock, $diskSize) = unpack('x39v2',$volDir);
@@ -216,7 +224,7 @@ sub path
     if ($newpath) {
         # Change directory:
         my @directories = @{$self->{directories}};
-        $#directories = 0 if $newpath =~ s!^/\Q$self->{volume}\E/?!!i;
+        $#directories = 0 if $newpath =~ s!^/\Q$self->{name}\E/?!!i;
         pop @directories
             while $#directories and $newpath =~ s'^\.\.(?:/|$)''; #'
         my $dir;
@@ -437,7 +445,7 @@ use vars '@ISA';
 # Map ProDOS bit order to Perl's vec():
 my @adjust = (7, 5, 3, 1, -1, -3, -5, -7);
 
-my %fields = (
+my %bit_fields = (
     diskSize => undef,
     free     => undef,
 );
@@ -461,7 +469,7 @@ sub new
         disk       => $disk,
         diskSize   => $diskSize,
         free       => $diskSize,
-        _permitted => \%fields,
+        _permitted => \%bit_fields,
     };
     bless $self, $type;
     $self->mark([ $diskSize-8 .. $diskSize-1], 1); # Mark odd blocks at end
@@ -496,7 +504,7 @@ sub open
     my ($type, $disk, $startBlock, $diskSize) = @_;
     my $self = {};
     $self->{disk} = $disk;
-    $self->{'_permitted'} = \%fields;
+    $self->{'_permitted'} = \%bit_fields;
     unless ($startBlock and $diskSize) {
         my $volDir = $disk->read_block(2);
         ($startBlock, $diskSize) = unpack('v2',substr($volDir,0x27,4));
@@ -620,14 +628,25 @@ package AppleII::ProDOS::Directory;
 #   diskSize:  The number of blocks on the disk
 #
 # For subdirectories:
-#   parent:     The block number where the parent directory begins
-#   parentNum:  Our entry number within the parent directory
+#   parent:     The block number in the parent directory where our entry is
+#   parentNum:  Our entry number within that block of the parent directory
 #---------------------------------------------------------------------
 
 AppleII::ProDOS->import(qw(a2_croak pack_date pack_name parse_name
-                           short_date valid_name));
+                           short_date valid_date valid_name));
 use Carp;
 use strict;
+use vars '@ISA';
+
+@ISA = 'AppleII::ProDOS::Members';
+
+my %dir_fields = (
+    access      => 0xFF,
+    created     => \&valid_date,
+    name        => \&valid_name,
+    type        => undef,
+    version     => undef,
+);
 
 #---------------------------------------------------------------------
 # Constructor for creating a new directory:
@@ -639,8 +658,8 @@ use strict;
 #   name:       The name of the new directory
 #   disk:       An AppleII::Disk
 #   blocks:     A block number or array of block numbers for the directory
-#   parent:     The block number where the parent directory begins
-#   parentNum:  The entry number in the parent directory
+#   parent:     The block number in the parent directory where our entry is
+#   parentNum:  Our entry number within that block of the parent directory
 #   bitmap:     The block number where the volume bitmap begins
 #   diskSize:   The size of the disk in blocks
 
@@ -659,6 +678,7 @@ sub new
         name    => $name,
         version => "\0\0",
         created => pack_date(time),
+        _permitted => \%dir_fields,
     };
 
     if ($parent) {
@@ -666,7 +686,7 @@ sub new
         $self->{parent}    = $parent;
         $self->{parentNum} = $parentNum;
     } else {
-        $self->{type}      = 0xF; # Volume directory
+        $self->{type}     = 0xF; # Volume directory
         $self->{bitmap}   = $bitmap;
         $self->{diskSize} = $diskSize;
     } # end else volume directory
@@ -680,19 +700,14 @@ sub new
 # Input:
 #   disk:       An AppleII::Disk
 #   block:      The block number where the directory begins
-#   parent:     The block number where the parent directory begins
-#   parentNum:  The entry number in the parent directory
 
 sub open
 {
-    my ($type, $disk, $block, $parent, $parentNum) = @_;
-    my $self = {};
-    $self->{disk} = $disk;
-
-    if ($parent) {
-        $self->{parent}    = $parent;
-        $self->{parentNum} = $parentNum;
-    }
+    my ($type, $disk, $block) = @_;
+    my $self = {
+        disk       => $disk,
+        _permitted => \%dir_fields,
+    };
 
     bless $self, $type;
     $self->read_disk($block);
@@ -753,6 +768,17 @@ sub catalog
 } # end AppleII::ProDOS::Directory::catalog
 
 #---------------------------------------------------------------------
+# Return the list of entries:
+#
+# Returns:
+#   A list of AppleII::ProDOS::DirEntry objects
+
+sub entries
+{
+    @{shift->{entries}};
+} # end AppleII::ProDOS::Directory::entries
+
+#---------------------------------------------------------------------
 # Find an entry:
 #
 # Input:
@@ -765,7 +791,7 @@ sub find_entry
 {
     my ($self, $filename) = @_;
     $filename = uc $filename;
-    (grep {uc($_->name) eq $filename} @{$self->{entries}})[0];
+    (grep {uc($_->name) eq $filename} @{$self->{'entries'}})[0];
 } # end AppleII::ProDOS::Directory::find_entry
 
 #---------------------------------------------------------------------
@@ -814,7 +840,7 @@ sub list_matches
     map { ($_->name =~ /$pattern/i and &$filter($_))
           ? $_->name
           : () }
-        @{$self->{entries}};
+        @{$self->{'entries'}};
 } # end AppleII::ProDOS::Directory::list_matches
 
 sub is_dir   { $_[0]->type == 0x0F } # True if entry is directory
@@ -853,7 +879,8 @@ sub new_dir
 
         $self->add_entry($entry);
         my $subdir = AppleII::ProDOS::Directory->new(
-            $dir, $self->{disk}, \@blocks, $self->{blocks}[0], $entry->num+1
+            $dir, $self->{disk}, \@blocks,
+            $self->{blocks}[int($entry->num / 0xD)], int($entry->num % 0xD)+1
         );
 
         $subdir->write_disk;
@@ -884,8 +911,7 @@ sub open_dir
     my $entry = $self->find_entry($dir)
         or a2_croak("No such directory `$dir'");
 
-    AppleII::ProDOS::Directory->open($self->{disk}, $entry->block,
-                                     $self->{blocks}[0], $entry->num);
+    AppleII::ProDOS::Directory->open($self->{disk}, $entry->block);
 } # end AppleII::ProDOS::Directory::open_dir
 
 #---------------------------------------------------------------------
@@ -940,10 +966,15 @@ sub read_disk
                 $self->{created} = substr($data, 0x1C-4,4);
                 $self->{version} = substr($data, 0x20-4,2);
                 $self->{access}  = ord substr($data, 0x22-4,1);
-                # For volume directory, read bitmap location and disk size:
-                @{$self}{'bitmap','diskSize'} =
-                    unpack('v2',substr($data,0x27-4,4))
-                        if $type == 0xF;
+                if ($type == 0xE) {
+                    # For subdirectory, read parent pointers
+                    @{$self}{qw(parent parentNum)} =
+                        unpack('vC',substr($data,0x27-4,3));
+                } else {
+                    # For volume directory, read bitmap location and disk size:
+                    @{$self}{qw(bitmap diskSize)} =
+                        unpack('v2',substr($data,0x27-4,4));
+                } # end else volume directory
             } elsif ($type) {
                 # File entry
                 push @entries, AppleII::ProDOS::DirEntry->new($entry, $data);
@@ -953,8 +984,7 @@ sub read_disk
         } # end while more records
     } # end if rebuilding block list
 
-    $self->{blocks}  = \@blocks;
-    $self->{entries} = \@entries;
+    @{$self}{qw(blocks entries)}  = (\@blocks, \@entries);
 } # end AppleII::ProDOS::Directory::read_disk
 
 #---------------------------------------------------------------------
@@ -966,7 +996,7 @@ sub write_disk
 
     my $disk    = $self->{disk};
     my @blocks  = @{$self->{blocks}};
-    my @entries = @{$self->{entries}};
+    my @entries = @{$self->{'entries'}};
     my $keyBlock = $blocks[0];
     push    @blocks, 0;         # Add marker at beginning and end
     unshift @blocks, 0;
@@ -985,7 +1015,11 @@ sub write_disk
             } else {
                 # Add the directory header:
                 $data .= pack_name(@{$self}{'type','name'});
-                $data .= "\0" x 8; # 8 bytes reserved
+                if ($self->{type} == 0xF) {
+                    $data .= "\0" x 8; # 8 bytes reserved
+                } else {
+                    $data .= "\x75\x23\x00\xC3\x27\x0D\x00\x00";
+                } # end else subdirectory
                 $data .= $self->{created};
                 $data .= $self->{version};
                 $data .= chr $self->{access};
@@ -1028,7 +1062,7 @@ use vars '@ISA';
 
 @ISA = 'AppleII::ProDOS::Members';
 
-my %fields = (
+my %de_fields = (
     access      => 0xFF,
     auxtype     => 0xFFFF,
     block       => sub { not defined $_[0]{block}    },
@@ -1054,7 +1088,7 @@ sub new
     my ($type, $number, $entry) = @_;
     my $self = {};
 
-    $self->{'_permitted'} = \%fields;
+    $self->{'_permitted'} = \%de_fields;
     if ($entry) {
         $self->{num} = $number;
         @{$self}{'storage', 'name'} = parse_name($entry);
@@ -1118,7 +1152,7 @@ use vars qw(@ISA);
 
 @ISA = 'AppleII::ProDOS::DirEntry';
 
-my %fields = (
+my %fil_fields = (
     access      => 0xFF,
     auxtype     => 0xFFFF,
     blksUsed    => undef,
@@ -1149,7 +1183,7 @@ sub new
         name       => $name,
         size       => length($data),
         type       => 0,
-        _permitted => \%fields
+        _permitted => \%fil_fields
     };
 
     my $blksUsed = int((length($data) + 0x1FF) / 0x200);
@@ -1176,8 +1210,9 @@ sub new
 sub open
 {
     my ($type, $disk, $entry) = @_;
-    my $self = {};
-    my @fields = qw(access auxtype created modified name size storage type);
+    my $self = { _permitted => \%fil_fields };
+    my @fields = qw(access auxtype blksUsed created modified name size
+                    storage type);
     @{$self}{@fields} = @{$entry}{@fields};
 
     my ($storage, $keyBlock, $blksUsed, $size) =
@@ -1318,7 +1353,7 @@ use vars '@ISA';
 
 @ISA = 'AppleII::ProDOS::Members';
 
-my %fields = (
+my %in_fields = (
     blocks => undef,
 );
 
@@ -1337,7 +1372,7 @@ sub new
         disk       => $disk,
         block      => $block,
         blocks     => $blocks,
-        _permitted => \%fields,
+        _permitted => \%in_fields,
     };
 
     bless $self, $type;
@@ -1358,7 +1393,7 @@ sub open
     my $self = {};
     $self->{disk} = $disk;
     $self->{block} = $block;
-    $self->{'_permitted'} = \%fields;
+    $self->{'_permitted'} = \%in_fields;
 
     bless $self, $type;
     $self->read_disk($count);
