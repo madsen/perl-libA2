@@ -5,7 +5,7 @@ package AppleII::ProDOS;
 #
 # Author: Christopher J. Madsen <ac608@yfn.ysu.edu>
 # Created: 26 Jul 1996
-# Version: $Revision: 0.3 $ ($Date: 1996/07/29 01:44:52 $)
+# Version: $Revision: 0.4 $ ($Date: 1996/07/29 21:54:41 $)
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the same terms as Perl itself.
@@ -19,15 +19,16 @@ package AppleII::ProDOS;
 #---------------------------------------------------------------------
 
 require 5.000;
-use AppleII::Disk 0.004;
+use AppleII::Disk 0.005;
 use Carp;
+use POSIX 'mktime';
 use strict;
 use vars qw(@ISA @EXPORT @EXPORT_OK $VERSION);
 
 require Exporter;
 @ISA = qw(Exporter);
 @EXPORT = qw();
-@EXPORT_OK = qw();
+@EXPORT_OK = qw(packName parseName parseDate);
 
 #=====================================================================
 # Package Global Variables:
@@ -35,7 +36,7 @@ require Exporter;
 BEGIN
 {
     # Convert RCS revision number to d.ddd format:
-    ' $Revision: 0.3 $ ' =~ / (\d+)\.(\d{1,3})(\.[0-9.]+)? /
+    ' $Revision: 0.4 $ ' =~ / (\d+)\.(\d{1,3})(\.[0-9.]+)? /
         or die "Invalid version number";
     $VERSION = $VERSION = sprintf("%d.%03d%s",$1,$2,$3);
 } # end BEGIN
@@ -70,7 +71,7 @@ sub new
 {
     my ($type, $disk, $mode) = @_;
     my $self = {};
-    $disk = AppleII::Disk::DOS33->new($disk, $mode) unless ref $disk;
+    $disk = AppleII::Disk->new($disk, $mode) unless ref $disk;
     $self->{disk} = $disk;
 
     my $volDir = $disk->readBlock(2);
@@ -79,13 +80,48 @@ sub new
     ($storageType, $self->{volume}) = parseName(substr($volDir,0x04,16));
     die "This is not a ProDOS disk" unless $storageType == 0xF;
 
-    my ($startBlock, $blocks) = unpack('v2',substr($volDir,0x27,4));
+    my ($startBlock, $blocks) = unpack('x39v2',$volDir);
 
     $self->{bitmap} = AppleII::ProDOS::Bitmap->new($disk,$startBlock,$blocks);
     $self->{diskSize} = $blocks;
 
     bless $self, $type;
 } # end AppleII::ProDOS::new
+
+#---------------------------------------------------------------------
+# Convert a filename to ProDOS format (length nibble):
+#
+# This is NOT a method; it's just a regular subroutine.
+#
+# Input:
+#   type:  The high nibble of the type/length byte
+#   name:  The name
+#
+# Returns:
+#   Packed string
+
+sub packName
+{
+    pack('Ca15',($_[0] << 4) + length($_[1]), uc $_[1]);
+} # end AppleII::ProDOS::parseName
+
+#---------------------------------------------------------------------
+# Extract a date & time:
+#
+# This is NOT a method; it's just a regular subroutine.
+#
+# Input:
+#   dateField:  The date/time field
+#
+# Returns:
+#   Standard time for use with gmtime (not localtime)
+
+sub parseDate
+{
+    my ($date, $minute, $hour) = unpack('vC2', $_[0]);
+    my ($year, $month, $day) = ($date>>9, (($date>>5) & 0x0F), $date & 0x1F);
+    mktime(0, $minute, $hour, $day, $month-1, $year);
+} # end AppleII::ProDOS::parseDate
 
 #---------------------------------------------------------------------
 # Extract a filename:
@@ -218,14 +254,21 @@ package AppleII::ProDOS::Directory;
 #     The directory name
 #   created:
 #     The date/time the directory was created
+#   type:
+#     0xF for a volume directory, 0xE for a subdirectory
 #   version:
 #     The contents of the VERSION & MIN_VERSION (2 byte string)
-#   parent:
-#     The AppleII::ProDOS::Directory containing this directory
-#   parentNum:
-#     Our entry number within the parent directory
+#
+# For the volume directory:
+#   bitmap:    The block number where the volume bitmap begins
+#   diskSize:  The number of blocks on the disk
+#
+# For subdirectories:
+#   parent:     The AppleII::ProDOS::Directory containing this directory
+#   parentNum:  Our entry number within the parent directory
 #---------------------------------------------------------------------
 
+AppleII::ProDOS->import(qw(packName parseName));
 use strict;
 
 #---------------------------------------------------------------------
@@ -268,15 +311,20 @@ sub readDisk
         push @blocks, $block;
         my $data = $disk->readBlock($block);
         $block = unpack('v',substr($data,0x02,2)); # Pointer to next block
-        substr($data,0x02,4) = '';                 # Remove block pointers
+        substr($data,0,4) = '';                    # Remove block pointers
         while ($data) {
-            my ($type, $name) = AppleII::ProDOS::parseName($data);
-            if ($type & 0xE == 0xE) {
+            my ($type, $name) = parseName($data);
+            if (($type & 0xE) == 0xE) {
                 # Directory header
                 $self->{name} = $name;
+                $self->{type} = $type;
                 $self->{created} = substr($data, 0x1C-4,4);
                 $self->{version} = substr($data, 0x20-4,2);
                 $self->{access}  = ord substr($data, 0x22-4,1);
+                # For volume directory, read bitmap location and disk size:
+                @{$self}{'bitmap','diskSize'} =
+                    unpack('v2',substr($data,0x27-4,4))
+                        if $type == 0xF;
             } elsif ($type) {
                 # File entry
                 push @entries, AppleII::ProDOS::DirEntry->new($entry, $data);
@@ -289,6 +337,53 @@ sub readDisk
     $self->{blocks}  = \@blocks;
     $self->{entries} = \@entries;
 } # end AppleII::ProDOS::Directory::readDisk
+
+#---------------------------------------------------------------------
+# Write directory to disk:
+
+sub writeDisk
+{
+    my ($self) = @_;
+
+    my $disk    = $self->{disk};
+    my @blocks  = @{$self->{blocks}};
+    my @entries = @{$self->{entries}};
+    my $keyBlock = $blocks[0];
+    push    @blocks, 0;         # Add marker at beginning and end
+    unshift @blocks, 0;
+
+    my ($i, $entry);
+    for ($i=1, $entry=0; $i < $#blocks; $i++) {
+        my $data = pack('v2',$blocks[$i-1],$blocks[$i+1]); # Block pointers
+        while (length($data) < 0x1FF) {
+            if ($entry) {
+                # Add a file entry:
+                if (@entries and $entries[0]{num} == $entry) {
+                    $data .= $entries[0]->packed($keyBlock); shift @entries;
+                } else {
+                    $data .= "\0" x 0x27;
+                }
+            } else {
+                # Add the directory header:
+                $data .= packName(@{$self}{'type','name'});
+                $data .= "\0" x 8; # 8 bytes reserved
+                $data .= $self->{created};
+                $data .= $self->{version};
+                $data .= chr $self->{access};
+                $data .= "\x27\x0D"; # Entry length, entries per block
+                $data .= pack('v',$#entries+1);
+                if ($self->{type} == 0xF) {
+                    $data .= pack('v2',@{$self}{'bitmap','diskSize'});
+                } else {
+                    $data .= pack('vCC',@{$self}{'parent','parentNum'},
+                                  0x27); # Parent entry length
+                } # end else subdirectory
+            } # end else if directory header
+            ++$entry;
+        } # end while more room in block
+        $disk->writeBlock($blocks[$i],$data."\0");
+    } # end for each directory block
+} # end AppleII::ProDOS::Directory::writeDisk
 
 #=====================================================================
 package AppleII::ProDOS::DirEntry;
@@ -306,6 +401,7 @@ package AppleII::ProDOS::DirEntry;
 #   modified: The date/time of last modification
 #   num:      The entry number of this entry
 #---------------------------------------------------------------------
+AppleII::ProDOS->import(qw(packName parseName));
 use integer;
 use strict;
 
@@ -321,16 +417,37 @@ sub new
     my ($type, $number, $entry) = @_;
     my $self = {};
 
-    @{$self}{'storage', 'name'} = AppleII::ProDOS::parseName($entry);
+    $self->{num} = $number;
+    @{$self}{'storage', 'name'} = parseName($entry);
     @{$self}{qw(type block blocks size)} = unpack('x16Cv2V',$entry);
     $self->{size} &= 0xFFFFFF;  # Size is only 3 bytes long
-    @{$self}{qw(access auxtype)} = unpack('x30Cv2VX',$entry);
+    @{$self}{qw(access auxtype)} = unpack('x30Cv',$entry);
 
     $self->{created}  = substr($entry,0x18,4);
     $self->{modified} = substr($entry,0x21,4);
 
     bless $self, $type;
 } # end AppleII::ProDOS::DirEntry::new
+
+#---------------------------------------------------------------------
+# Return the entry as a packed string:
+#
+# Input:
+#   keyBlock:  The block number of the beginning of the directory
+#
+# Returns:
+#   A directory entry ready to put in a ProDOS directory
+
+sub packed
+{
+    my ($self, $keyBlock) = @_;
+    my $data = packName(@{$self}{'storage', 'name'});
+    $data .= pack('Cv2VX',@{$self}{qw(type block blocks size)});
+    $data .= $self->{created} . "\0\0";
+    $data .= pack('Cv',@{$self}{qw(access auxtype)});
+    $data .= $self->{modified};
+    $data .= pack('v',$keyBlock);
+} # end AppleII::ProDOS::DirEntry::packed
 
 #=====================================================================
 package AppleII::ProDOS::Index;
@@ -375,7 +492,6 @@ sub readDisk
 
     while (@dataLo) {
         push @blocks, shift(@dataLo) + 0x100 * shift(@dataHi);
-        pop @blocks, last unless @blocks[-1];
     }
 
     $self->{blocks} = \@blocks;
