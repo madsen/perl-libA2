@@ -1,6 +1,6 @@
 #!perl
 #---------------------------------------------------------------------
-# $Id: prodos.pl,v 0.8 1996/08/12 21:14:48 Madsen Exp $
+# $Id: prodos.pl,v 0.9 1997/02/25 06:02:23 Madsen Exp $
 # Copyright 1996 Christopher J. Madsen
 #
 # This program is free software; you can redistribute it and/or modify
@@ -17,7 +17,12 @@
 use AppleII::ProDOS qw(0.016 shell_wc);
 use Term::ReadLine;
 
-my @commands = qw(cd get lcd ls ll mkdir put pwd quit type);
+my $maxscreen = 20;
+my $pager     = $ENV{PAGER};
+my $shell     = $ENV{SHELL} || '/bin/sh';
+
+#---------------------------------------------------------------------
+my @commands = qw(cd dir get lcd ls ll mkdir put pwd quit type);
 
 my $term = Term::ReadLine->new('ProDOS Shell');
 
@@ -45,20 +50,22 @@ while (1) {
     eval {
       CMD: {
         print($vol->path,"\n"),              next CMD if $cmd eq 'pwd';
+        print("Use `dir' or `type' instead\a\n"),next CMD if $cmd eq 'cat';
         print($vol->path($arg),"\n"),        next CMD if $cmd eq 'cd';
-        print($vol->catalog,"\n"),           next CMD if $cmd =~ /^l[sl]$/;
-        print($vol->get_file($arg)->as_text),next CMD if $cmd eq 'type';
+        display($vol->catalog,"\n"),         next CMD if $cmd =~ /^l[sl]$/
+            or                                           $cmd eq 'dir';
+        display($vol->get_file($arg)->as_text),next CMD if $cmd eq 'type';
         get_file($vol,$arg),                 next CMD if $cmd eq 'get';
         put_file($vol,$arg),                 next CMD if $cmd eq 'put';
         $vol->new_dir($arg),                 next CMD if $cmd eq 'mkdir';
         (chdir($arg) || die "Bad directory"),next CMD if $cmd eq 'lcd';
-        system('/bin/sh'),                   next CMD if $cmd eq '!';
+        system($shell),                      next CMD if $cmd eq '!';
         system(substr("$cmd $arg",1)),       next CMD if $cmd =~ /^!/;
         print "Bad command `$cmd'\a\n";
       } # end CMD
     }; # end eval
     if ($@) {
-        $@ =~ /^(.+) at \Q$0\E line \d+\.?$/ or die $@;
+        $@ =~ /^LibA2: (.+) at \S+ line / or die $@;
         print $1,"\a\n";
     }
 } # end forever
@@ -76,6 +83,20 @@ sub complete_word
   return $vol->dir->list_matches(shell_wc("$text*"),'DIR') if $line =~ /^cd\b/;
   $vol->dir->list_matches(shell_wc("$text*"),'!DIR');
 } # end complete_word
+
+#---------------------------------------------------------------------
+sub display
+{
+    my $text = (scalar(@_) > 1 ? join('',@_) : $_[0]);
+    my $lines = $text =~ tr/\n//; # Count the newlines
+    if ($lines > $maxscreen and $pager) {
+        open(PAGER,"|$pager") or die;
+        print PAGER $text;
+        close(PAGER);
+    } else {
+        print $text;
+    }
+} # end display
 
 #---------------------------------------------------------------------
 sub get_file
@@ -112,3 +133,86 @@ sub put_file
 
     $vol->put_file($file);
 } # end put_file
+
+__END__
+
+=head1 NAME
+
+prodos - Manipulate Apple II ProDOS disk image files
+
+=head1 SYNOPSIS
+
+B<prodos> IMAGE-FILE
+
+=head1 DESCRIPTION
+
+B<prodos> provides a Unix/MS-DOS style command-line shell for
+manipulating the contents of a disk image file containing an Apple II
+ProDOS volume.
+
+=head1 COMMANDS
+
+=over 5
+
+=item B<cd> I<PATH>
+
+Change the current directory on the ProDOS volume to I<PATH>.  Use
+B<lcd> to change the directory on the native filesystem.
+
+=item B<dir>, B<ls>, or B<ll>
+
+List the contents of the current directory on the ProDOS volume.
+
+=item B<get> I<FILE>
+
+Copy I<FILE> from the ProDOS volume to the native filesystem.
+
+=item B<lcd> I<PATH>
+
+Change the current directory on the native filesystem to I<PATH>.  Use
+B<cd> to change the directory on the ProDOS volume.
+
+=item B<mkdir> I<DIRECTORY>
+
+Create a new subdirectory on the ProDOS volume.
+
+=item B<put> I<FILE>
+
+Copy I<FILE> from the native filesystem to the ProDOS volume.
+
+=item B<pwd>
+
+List the name of the current directory on the ProDOS volume.
+
+=item B<quit>
+
+Exit B<prodos>.
+
+=item B<type> I<FILE>
+
+Display the contents of I<FILE>, which should be a text file.
+
+=back
+
+=head1 REQUIREMENTS
+
+B<prodos> requires Term::ReadLine, available on CPAN.
+
+It also requires the modules AppleII::ProDOS and AppleII::Disk,
+which are included with LibA2.
+
+=head1 BUGS
+
+B<prodos> doesn't have a B<cat> command, because under ProDOS that
+means B<dir> and under Unix it means B<type>.  To avoid confusion, I
+left it out.
+
+=head1 AUTHOR
+
+Christopher J. Madsen E<lt>F<ac608@yfn.ysu.edu>E<gt>
+
+=cut
+
+# Local Variables:
+#  tmtrack-file-task: "LibA2: prodos.pl"
+# End:
