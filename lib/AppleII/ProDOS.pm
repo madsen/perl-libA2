@@ -5,7 +5,7 @@ package AppleII::ProDOS;
 #
 # Author: Christopher J. Madsen <ac608@yfn.ysu.edu>
 # Created: 26 Jul 1996
-# Version: $Revision: 0.11 $ ($Date: 1996/07/31 22:49:34 $)
+# Version: $Revision: 0.12 $ ($Date: 1996/08/02 16:05:29 $)
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the same terms as Perl itself.
@@ -19,7 +19,7 @@ package AppleII::ProDOS;
 #---------------------------------------------------------------------
 
 require 5.000;
-use AppleII::Disk 0.005;
+use AppleII::Disk 0.007;
 use Carp;
 use POSIX 'mktime';
 use strict;
@@ -39,7 +39,7 @@ require Exporter;
 BEGIN
 {
     # Convert RCS revision number to d.ddd format:
-    ' $Revision: 0.11 $ ' =~ / (\d+)\.(\d{1,3})(\.[0-9.]+)? /
+    ' $Revision: 0.12 $ ' =~ / (\d+)\.(\d{1,3})(\.[0-9.]+)? /
         or die "Invalid version number";
     $VERSION = $VERSION = sprintf("%d.%03d%s",$1,$2,$3);
 } # end BEGIN
@@ -109,19 +109,32 @@ sub new
     ($storageType, $self->{volume}) = parseName(substr($volDir,0x04,16));
     croak('This is not a ProDOS disk') unless $storageType == 0xF;
 
-    my ($startBlock, $blocks) = unpack('x39v2',$volDir);
+    my ($startBlock, $diskSize) = unpack('x39v2',$volDir);
+    $disk->{maxlen} = 0x200 * $diskSize; # FIXME
 
-    $self->{bitmap} = AppleII::ProDOS::Bitmap->new($disk,$startBlock,$blocks);
+    $self->{bitmap} =
+      AppleII::ProDOS::Bitmap->new($disk,$startBlock,$diskSize);
+
     $self->{directories} = [ AppleII::ProDOS::Directory->new($disk,2) ];
-    $self->{diskSize} = $blocks;
+    $self->{diskSize} = $diskSize;
 
     bless $self, $type;
 } # end AppleII::ProDOS::new
 
 #---------------------------------------------------------------------
+# Return the disk catalog and free space information:
+#
+# Returns:
+#   A string containing a catalog listing with free space information
+
 sub catalog
 {
-    shift->{directories}[-1]->catalog(@_);
+    my ($self, @rest) = @_;
+    my $bitmap = $self->{bitmap};
+    my ($free, $total, $used) = ($bitmap->free, $bitmap->diskSize);
+    $used = $total - $free;
+    $self->{directories}[-1]->catalog(@rest) .
+        "Blocks free: $free     Blocks used: $used     Total blocks: $total\n";
 } # end AppleII::ProDOS::catalog
 
 #---------------------------------------------------------------------
@@ -159,6 +172,13 @@ sub getFile
 {
     shift->{directories}[-1]->getFile(@_);
 } # end AppleII::ProDOS::getFile
+
+#---------------------------------------------------------------------
+sub putFile
+{
+    my $self = shift;
+    $self->{directories}[-1]->putFile($self->{bitmap}, @_);
+} # end AppleII::ProDOS::putFile
 
 #---------------------------------------------------------------------
 # Like croak, but get out of all AppleII::ProDOS classes:
@@ -304,13 +324,22 @@ package AppleII::ProDOS::Bitmap;
 #   blocks:    An array of the block numbers where the bitmap is stored
 #   disk:      An AppleII::Disk
 #   diskSize:  The number of blocks on the disk
+#   free:      The number of free blocks
 #---------------------------------------------------------------------
 
 use Carp;
 use strict;
+use vars '@ISA';
+
+@ISA = 'AppleII::ProDOS::Members';
 
 # Map ProDOS bit order to Perl's vec():
 my @adjust = (7, 5, 3, 1, -1, -3, -5, -7);
+
+my %fields = (
+    diskSize => undef,
+    free     => undef,
+);
 
 #---------------------------------------------------------------------
 # Constructor:
@@ -318,26 +347,28 @@ my @adjust = (7, 5, 3, 1, -1, -3, -5, -7);
 # Input:
 #   disk:        The AppleII::Disk to use
 #   startBlock:  The block number where the volume bitmap begins
-#   blocks:      The size of the disk in blocks
+#   diskSize:    The size of the disk in blocks
 #     STARTBLOCK & BLOCKS are optional.  If they are omitted, we get
 #     the information from the volume directory.
 
 sub new
 {
-    my ($type, $disk, $startBlock, $blocks) = @_;
+    my ($type, $disk, $startBlock, $diskSize) = @_;
     my $self = {};
     $self->{disk} = $disk;
-    unless ($startBlock and $blocks) {
+    $self->{'_permitted'} = \%fields;
+    unless ($startBlock and $diskSize) {
         my $volDir = $disk->readBlock(2);
-        ($startBlock, $blocks) = unpack('v2',substr($volDir,0x27,4));
+        ($startBlock, $diskSize) = unpack('v2',substr($volDir,0x27,4));
     }
-    $self->{diskSize} = $blocks;
+    $self->{diskSize} = $diskSize;
     do {
         push @{$self->{blocks}}, $startBlock++;
-    } while ($blocks -= 0x1000) > 0;
-    $self->{bitmap} = $disk->readBlocks($self->{blocks});
+    } while ($diskSize -= 0x1000) > 0;
 
     bless $self, $type;
+    $self->readDisk;
+    $self;
 } # end AppleII::ProDOS::Bitmap::new
 
 #---------------------------------------------------------------------
@@ -353,6 +384,7 @@ sub new
 sub getBlocks
 {
     my ($self, $count) = @_;
+    return () if $count > $self->{free};
     my (@blocks,$i);
     my $diskSize = $self->{diskSize};
     for ($i=3; $i < $diskSize; $i++) {
@@ -400,6 +432,7 @@ sub mark
         croak("No block $block") if $block < 0 or $block >= $diskSize;
         vec($self->{bitmap}, $block + $adjust[$block % 8],1) = $mark;
     }
+    $self->{free} += ($mark ? 1 : -1) * ($#$blocks + 1);
 } # end AppleII::ProDOS::Bitmap::isFree
 
 #---------------------------------------------------------------------
@@ -409,6 +442,7 @@ sub readDisk
 {
     my $self = shift;
     $self->{bitmap} = $self->{disk}->readBlocks($self->{blocks});
+    $self->{free}   = unpack('%32b*', $self->{bitmap});
 } # end AppleII::ProDOS::Bitmap::readDisk
 
 #---------------------------------------------------------------------
@@ -490,6 +524,10 @@ sub new
 sub addEntry
 {
     my ($self,$entry) = @_;
+
+    a2_croak($entry->name . ' already exists')
+        if $self->findEntry($entry->name);
+
     my $entries = $self->{entries};
 
     my $lastEntry = 0xD * (1 + $#{$self->{blocks}});
@@ -520,7 +558,7 @@ sub catalog
     my $entry;
     foreach $entry (@{$self->{entries}}) {
         $result .= sprintf("%-15s %-3s %5d  %s %s %8d  \$%04X\n",
-                           $entry->name, $entry->shortType, $entry->blocks,
+                           $entry->name, $entry->shortType, $entry->blksUsed,
                            shortDate($entry->modified),
                            shortDate($entry->created),
                            $entry->size, $entry->auxtype);
@@ -582,6 +620,33 @@ sub open
     AppleII::ProDOS::Directory->new($self->{disk}, $entry->block,
                                     $self->{blocks}[0], $entry->num);
 } # end AppleII::ProDOS::Directory::open
+
+#---------------------------------------------------------------------
+# Add a new file to the directory:
+#
+# Input:
+#   bitmap:  The AppleII::ProDOS::Bitmap for the disk
+#   file:    The AppleII::ProDOS::File to add
+
+sub putFile
+{
+    my ($self, $bitmap, $file) = @_;
+
+    eval {
+        $file->allocateSpace($bitmap);
+        $self->addEntry($file);
+        $file->writeDisk($self->{disk});
+        $self->writeDisk;
+        $bitmap->writeDisk;
+    };
+    if ($@) {
+        my $error = $@;
+        # Clean up after failure:
+        $self->readDisk;
+        $bitmap->readDisk;
+        die $error;
+    }
+} # end AppleII::ProDOS::Directory::putFile
 
 #---------------------------------------------------------------------
 # Read directory from disk:
@@ -679,7 +744,7 @@ package AppleII::ProDOS::DirEntry;
 #   access:   The access attributes
 #   auxtype:  The auxiliary type
 #   block:    The key block for this file
-#   blocks:   The number of blocks used by this file
+#   blksUsed: The number of blocks used by this file
 #   created:  The creation date/time
 #   modified: The date/time of last modification
 #   name:     The filename
@@ -698,8 +763,8 @@ use vars '@ISA';
 my %fields = (
     access      => 0xFF,
     auxtype     => 0xFFFF,
-    block       => sub { not defined $_[0]{block} },
-    blocks      => sub { not defined $_[0]{blocks} },
+    block       => sub { not defined $_[0]{block}    },
+    blksUsed    => sub { not defined $_[0]{blksUsed} },
     created     => 0xFFFF,      # FIXME need better validator
     modified    => 0xFFFF,      # FIXME need better validator
     name        => \&validName,
@@ -724,7 +789,7 @@ sub new
     if ($entry) {
         $self->{num} = $number;
         @{$self}{'storage', 'name'} = parseName($entry);
-        @{$self}{qw(type block blocks size)} = unpack('x16Cv2V',$entry);
+        @{$self}{qw(type block blksUsed size)} = unpack('x16Cv2V',$entry);
         $self->{size} &= 0xFFFFFF;  # Size is only 3 bytes long
         @{$self}{qw(access auxtype)} = unpack('x30Cv',$entry);
 
@@ -750,7 +815,7 @@ sub packed
 {
     my ($self, $keyBlock) = @_;
     my $data = packName(@{$self}{'storage', 'name'});
-    $data .= pack('Cv2VX',@{$self}{qw(type block blocks size)});
+    $data .= pack('Cv2VX',@{$self}{qw(type block blksUsed size)});
     $data .= $self->{created} . "\0\0";
     $data .= pack('Cv',@{$self}{qw(access auxtype)});
     $data .= $self->{modified};
@@ -769,9 +834,16 @@ sub shortType
 package AppleII::ProDOS::File;
 #
 # Member Variables:
-#   data:  The contents of the file
+#   data:         The contents of the file
+#   indexBlocks:  For tree files, the number of subindex blocks needed
+#
+# Private Members (for communication between allocateSpace & writeDisk):
+#   blocks:       The list of data blocks allocated for this file
+#   indexBlocks:  For tree files, the list of subindex blocks
 #---------------------------------------------------------------------
 
+AppleII::ProDOS->import(qw(a2_croak));
+use Carp;
 use vars qw(@ISA);
 
 @ISA = 'AppleII::ProDOS::DirEntry';
@@ -779,13 +851,130 @@ use vars qw(@ISA);
 my %fields = (
     access      => 0xFF,
     auxtype     => 0xFFFF,
-    blocks      => undef,
+    blksUsed    => undef,
     created     => 0xFFFF,      # FIXME need better validator
+    data        => undef,
     modified    => 0xFFFF,      # FIXME need better validator
     name        => \&validName,
     size        => undef,
     type        => 0xFF,
 );
+
+#---------------------------------------------------------------------
+# Constructor for creating a new file:
+#
+# Input:
+#   name:  The filename
+#   data:  The contents of the file
+
+sub new
+{
+    my ($type, $name, $data) = @_;
+    my $self = {
+        access     => 0xE3,
+        auxtype    => 0,
+        created    => "\0\0\0\0",
+        data       => $data,
+        modified   => "\0\0\0\0",
+        name       => $name,
+        size       => length($data),
+        type       => 0,
+        _permitted => \%fields
+    };
+
+    my $blksUsed = int((length($data) + 0x1FF) / 0x200);
+    $self->{storage} = 2;       # Assume sapling file
+    if ($blksUsed > 0x100) {
+        $self->{storage} = 3;   # Need extra index blocks for tree file
+        $blksUsed += $self->{indexBlocks} = int(($blksUsed + 0xFF) / 0x100);
+    }
+    if ($blksUsed > 1) { ++$blksUsed        } # Tree or sapling file
+    else             { $self->{storage} = 1 } # Seedling file
+
+    $self->{blksUsed} = $blksUsed;
+
+    bless $self, $type;
+} # end AppleII::ProDOS::File::new
+
+#---------------------------------------------------------------------
+# Open a file:
+#
+# Input:
+#   disk:   The disk to read
+#   entry:  The AppleII::ProDOS::DirEntry that describes the file
+
+sub open
+{
+    my ($type, $disk, $entry) = @_;
+    my $self = {};
+    my @fields = qw(access auxtype created modified name size storage type);
+    @{$self}{@fields} = @{$entry}{@fields};
+
+    my ($storage, $keyBlock, $blksUsed, $size) =
+        @{$entry}{qw(storage block blksUsed size)};
+
+    my $data;
+    if ($storage == 1) {
+        $data = $disk->readBlock($keyBlock);
+    } elsif ($storage == 2) {
+        my $index = AppleII::ProDOS::Index->open($disk,$keyBlock,$blksUsed-1);
+        $data = $disk->readBlocks($index->blocks);
+    } elsif ($storage == 3) {
+        my $blksUsed    = int(($size + 0x1FF) / 0x200);
+        my $indexBlocks = int(($blksUsed + 0xFF) / 0x100);
+        my $index = AppleII::ProDOS::Index->open($disk,$keyBlock,$indexBlocks);
+        my (@blocks,$block);
+        foreach $block (@{$index->blocks}) {
+            my $subindex = AppleII::ProDOS::Index->open($disk,$block);
+            push @blocks,@{$subindex->blocks};
+        }
+        $#blocks = $blksUsed-1; # Use only the first $blksUsed blocks
+        $data = $disk->readBlocks(\@blocks);
+        $self->{indexBlocks} = $indexBlocks;
+    } else {
+        croak("Unsupported storage type $storage");
+    }
+
+    substr($data, $size) = '' if length($data) > $size;
+    $self->{'data'} = $data;
+
+    bless $self, $type;
+} # end AppleII::ProDOS::File::open
+
+#---------------------------------------------------------------------
+# Allocate space for the file:
+#
+# Input:
+#   bitmap:  The AppleII::ProDOS::Bitmap we should use
+#
+# Input Variables:
+#   indexBlocks:  The number of subindex blocks needed
+#
+# Output Variables:
+#   blocks:       The list of data blocks allocated
+#   indexBlocks:  The list of subindex blocks allocated
+
+sub allocateSpace
+{
+    my ($self, $bitmap) = @_;
+
+    my @blocks = $bitmap->getBlocks($self->{blksUsed})
+        or a2_croak("Not enough free space");
+
+    my $storage = $self->{storage};
+
+    $self->{block} = @blocks[0];
+
+    shift @blocks if $storage > 1; # Remove index block from list
+
+    if ($storage == 3) {
+        $self->{indexBlocks} = [ splice @blocks, 0, $self->{indexBlocks} ];
+    }
+
+    croak("Unsupported storage type $storage") unless $storage < 4;
+
+    $self->{blocks} = \@blocks;
+} # end AppleII::ProDOS::File::allocateSpace
 
 #---------------------------------------------------------------------
 # Return the file's contents as text:
@@ -802,48 +991,47 @@ sub asText
 } # end AppleII::ProDOS::File::asText
 
 #---------------------------------------------------------------------
-# Return the file's contents:
+# Write the file to disk:
 #
-# Returns:
-#   The file's contents
-
-sub data
-{
-    return shift->{data};
-} # end AppleII::ProDOS::File::data
-
-#---------------------------------------------------------------------
-# Open a file:
+# You must have already called allocateSpace.
 #
 # Input:
-#   disk:   The disk to read
-#   entry:  The AppleII::ProDOS::DirEntry that describes the file
+#   disk:  The disk to write to
+#
+# Input Variables:
+#   blocks:       The list of data blocks allocated
+#   indexBlocks:  The list of subindex blocks allocated
+#
+# Output Variables:
+#   indexBlocks:  The number of subindex blocks needed
 
-sub open
+sub writeDisk
 {
-    my ($type, $disk, $entry) = @_;
-    my $self = {};
-    my @fields = qw(access auxtype created modified name size type);
-    @{$self}{@fields} = @{$entry}{@fields};
+    my ($self, $disk) = @_;
 
-    my ($storage, $keyBlock, $blocks, $size) =
-        @{$entry}{qw(storage block blocks size)};
+    $disk->writeBlocks($self->{blocks}, $self->{'data'}, "\0");
 
-    my $data;
-    if ($storage == 1) {
-        $data = $disk->readBlock($keyBlock);
-    } elsif ($storage == 2) {
-        my $index = AppleII::ProDOS::Index->new($disk,$keyBlock,$blocks-1);
-        $data = $disk->readBlocks($index->blocks);
-    } else {
-        croak("Unsupported storage type $storage");
-    }
+    my $storage = $self->{storage};
+    if ($storage == 2) {
+        my $index = AppleII::ProDOS::Index->new($disk,
+                                                @{$self}{qw(block blocks)});
+        $index->writeDisk;
+    } elsif ($storage == 3) {
+        my $index =
+          AppleII::ProDOS::Index->new($disk, @{$self}{qw(block indexBlocks)});
+        $index->writeDisk;
+        my @blocks = @{$self->{blocks}};
+        my $block;
+        foreach $block (@{$self->{indexBlocks}}) {
+            $index = AppleII::ProDOS::Index->new($disk, $block,
+                                                 [splice(@blocks,0,0x100)]);
+            $index->writeDisk;
+        }
+        $self->{indexBlocks} = $#{$self->{indexBlocks}};
+    } # end elsif tree file
 
-    substr($data, $size) = '' if length($data) > $size;
-    $self->{'data'} = $data;
-
-    bless $self, $type;
-} # end AppleII::ProDOS::File::open
+    delete $self->{blocks};
+} # end AppleII::ProDOS::File::writeDisk
 
 #=====================================================================
 package AppleII::ProDOS::Index;
@@ -865,7 +1053,28 @@ my %fields = (
 );
 
 #---------------------------------------------------------------------
-# Constructor:
+# Constructor for creating a new index block:
+#
+# Input:
+#   disk:    An AppleII::Disk
+#   block:   The block number of the index block
+#   blocks:  The list of blocks that are pointed to by this block
+
+sub new
+{
+    my ($type, $disk, $block, $blocks) = @_;
+    my $self = {
+        disk       => $disk,
+        block      => $block,
+        blocks     => $blocks,
+        _permitted => \%fields,
+    };
+
+    bless $self, $type;
+} # end AppleII::ProDOS::Index::new
+
+#---------------------------------------------------------------------
+# Constructor for reading an existing index block:
 #
 # Input:
 #   disk:   An AppleII::Disk
@@ -873,7 +1082,7 @@ my %fields = (
 #   count:  The number of blocks that are pointed to by this block
 #           (optional; default is 256)
 
-sub new
+sub open
 {
     my ($type, $disk, $block, $count) = @_;
     my $self = {};
@@ -884,7 +1093,7 @@ sub new
     bless $self, $type;
     $self->readDisk($count);
     $self;
-} # end AppleII::ProDOS::Index::new;
+} # end AppleII::ProDOS::Index::open
 
 #---------------------------------------------------------------------
 # Read contents of index block from disk:
