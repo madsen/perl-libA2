@@ -1,6 +1,6 @@
-#!perl
+#! /usr/bin/perl
 #---------------------------------------------------------------------
-# $Id: prodos.pl,v 0.10 1997/02/26 02:35:36 Madsen Exp $
+# $Id: prodos.pl,v 0.11 2005/01/15 05:06:08 Madsen Exp $
 # Copyright 1996 Christopher J. Madsen
 #
 # This program is free software; you can redistribute it and/or modify
@@ -58,7 +58,8 @@ while (1) {
         get_file($vol,$arg),                 next CMD if $cmd eq 'get';
         put_file($vol,$arg),                 next CMD if $cmd eq 'put';
         $vol->new_dir($arg),                 next CMD if $cmd eq 'mkdir';
-        (chdir($arg) || die "Bad directory"),next CMD if $cmd eq 'lcd';
+        (chdir($arg) || print "Bad directory `$arg'\a\n"),
+                                             next CMD if $cmd eq 'lcd';
         system($shell),                      next CMD if $cmd eq '!';
         system(substr("$cmd $arg",1)),       next CMD if $cmd =~ /^!/;
         print "Bad command `$cmd'\a\n";
@@ -218,7 +219,7 @@ left it out.
 
 =head1 AUTHOR
 
-Christopher J. Madsen E<lt>F<ac608@yfn.ysu.edu>E<gt>
+Christopher J. Madsen E<lt>F<cjm@pobox.com>E<gt>
 
 =cut
 
