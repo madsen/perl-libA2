@@ -5,7 +5,7 @@ package AppleII::Disk;
 #
 # Author: Christopher J. Madsen <ac608@yfn.ysu.edu>
 # Created: 25 Jul 1996
-# Version: $Revision: 0.7 $ ($Date: 1996/08/02 15:43:51 $)
+# Version: $Revision: 0.8 $ ($Date: 1996/08/03 19:30:42 $)
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the same terms as Perl itself.
@@ -35,7 +35,7 @@ require Exporter;
 BEGIN
 {
     # Convert RCS revision number to d.ddd format:
-    ' $Revision: 0.7 $ ' =~ / (\d+)\.(\d{1,3})(\.[0-9.]+)? /
+    ' $Revision: 0.8 $ ' =~ / (\d+)\.(\d{1,3})(\.[0-9.]+)? /
         or die "Invalid version number";
     $VERSION = $VERSION = sprintf("%d.%03d%s",$1,$2,$3);
 } # end BEGIN
@@ -109,7 +109,7 @@ sub new
 #     Dies if the block is too long.
 #     If PAD is the null string, dies if BLOCK is not already LENGTH.
 
-sub padBlock
+sub pad_block
 {
     my ($self, $data, $pad, $length) = @_;
 
@@ -126,7 +126,7 @@ sub padBlock
     }
 
     $data;
-} # end AppleII::Disk::padBlock
+} # end AppleII::Disk::pad_block
 
 #---------------------------------------------------------------------
 # Read a ProDOS block:
@@ -148,15 +148,15 @@ sub padBlock
 # Returns:
 #   The data from the disk (512 bytes times the number of blocks)
 
-sub readBlocks
+sub read_blocks
 {
     my ($self, $blocks) = @_;
     my $data = '';
     foreach (@$blocks) {
-        $data .= $self->readBlock($_);
+        $data .= $self->read_block($_);
     }
     $data;
-} # end AppleII::Disk::readBlocks
+} # end AppleII::Disk::read_blocks
 
 #---------------------------------------------------------------------
 # Read a DOS 3.3 sector:
@@ -189,15 +189,15 @@ sub readBlocks
 #   data:    The data to write (must be exactly the right size)
 #   pad:     A character to pad the last block with (optional)
 
-sub writeBlocks
+sub write_blocks
 {
     my ($self, $blocks, $data, $pad) = @_;
     my $index = 0;
     foreach (@$blocks) {
-        $self->writeBlock($_, substr($data, $index, 0x200), $pad);
+        $self->write_block($_, substr($data, $index, 0x200), $pad);
         $index += 0x200;
     }
-} # end AppleII::Disk::writeBlocks
+} # end AppleII::Disk::write_blocks
 
 #---------------------------------------------------------------------
 # Write a DOS 3.3 sector:
@@ -228,22 +228,22 @@ use vars qw(@ISA);
 #---------------------------------------------------------------------
 # Read a block from a ProDOS order disk:
 #
-# See AppleII::Disk::readBlock
+# See AppleII::Disk::read_block
 
-sub readBlock
+sub read_block
 {
     my $self = shift;
 
     return "\0" x 0x200
-        if $self->seekBlock($_[0]) >= $self->{actlen}; # Past EOF
+        if $self->seek_block($_[0]) >= $self->{actlen}; # Past EOF
     my $buffer = '';
     read($self->{file},$buffer,0x200) or die;
 
     $buffer;
-} # end AppleII::Disk::ProDOS::readBlock
+} # end AppleII::Disk::ProDOS::read_block
 
 #---------------------------------------------------------------------
-# FIXME AppleII::Disk::ProDOS::readSector not implemented yet
+# FIXME AppleII::Disk::ProDOS::read_sector not implemented yet
 
 #---------------------------------------------------------------------
 # Seek to the beginning of a block:
@@ -254,7 +254,7 @@ sub readBlock
 # Returns:
 #   The new position of the file pointer
 
-sub seekBlock
+sub seek_block
 {
     my ($self, $block) = @_;
 
@@ -265,24 +265,24 @@ sub seekBlock
     $self->{file}->seek($pos,0) or die;
 
     $pos;
-} # end AppleII::Disk::ProDOS::seekBlock
+} # end AppleII::Disk::ProDOS::seek_block
 
 #---------------------------------------------------------------------
 # Write a block from a ProDOS order disk:
 #
-# See AppleII::Disk::writeBlock
+# See AppleII::Disk::write_block
 
-sub writeBlock
+sub write_block
 {
     my ($self, $block, $data, $pad) = @_;
     croak("Disk image is read/only") unless $self->{writable};
 
-    $data = $self->padBlock($data, $pad || '');
+    $data = $self->pad_block($data, $pad || '');
 
-    $self->seekBlock($block);
+    $self->seek_block($block);
     print {$self->{file}} $data or die;
     $self->{actlen} = (stat $self->{file})[7];
-} # end AppleII::Disk::ProDOS::writeBlock
+} # end AppleII::Disk::ProDOS::write_block
 
 #=====================================================================
 package AppleII::Disk::DOS33;
@@ -318,31 +318,31 @@ sub block2sector
 #---------------------------------------------------------------------
 # Read a block from a DOS 3.3 order disk:
 #
-# See AppleII::Disk::readBlock
+# See AppleII::Disk::read_block
 
-sub readBlock
+sub read_block
 {
     my ($self, $block) = @_;
     my ($track, $sector1, $sector2) = block2sector($block);
 
-    $self->readSector($track, $sector1) . $self->readSector($track, $sector2);
-} # end AppleII::Disk::DOS33::readBlock
+    $self->read_sector($track,$sector1) . $self->read_sector($track,$sector2);
+} # end AppleII::Disk::DOS33::read_block
 
 #---------------------------------------------------------------------
 # Read a DOS 3.3 sector:
 #
-# See AppleII::Disk::readSector
+# See AppleII::Disk::read_sector
 
-sub readSector
+sub read_sector
 {
     my $self = shift;
     return "\0" x 0x100
-        if $self->seekSector(@_[0..1]) >= $self->{actlen}; # Past EOF
+        if $self->seek_sector(@_[0..1]) >= $self->{actlen}; # Past EOF
     my $buffer = '';
     read($self->{file},$buffer,0x100) or die;
 
     $buffer;
-} # end AppleII::Disk::DOS33::readSector
+} # end AppleII::Disk::DOS33::read_sector
 
 #---------------------------------------------------------------------
 # Seek to the beginning of a sector:
@@ -354,7 +354,7 @@ sub readSector
 # Returns:
 #   The new position of the file pointer
 
-sub seekSector
+sub seek_sector
 {
     my ($self, $track, $sector) = @_;
 
@@ -364,41 +364,41 @@ sub seekSector
 
     $self->{file}->seek($pos,0) or die;
     $pos;
-} # end AppleII::Disk::DOS33::seekSector
+} # end AppleII::Disk::DOS33::seek_sector
 
 #---------------------------------------------------------------------
 # Write a sector to a DOS 3.3 order image:
 #
-# See AppleII::Disk::writeSector
+# See AppleII::Disk::write_sector
 
-sub writeSector
+sub write_sector
 {
     my ($self, $track, $sector, $data, $pad) = @_;
     croak("Disk image is read/only") unless $self->{writable};
 
-    $data = $self->padBlock($data, $pad || '', 0x100);
+    $data = $self->pad_block($data, $pad || '', 0x100);
 
-    $self->seekSector($track, $sector);
+    $self->seek_sector($track, $sector);
     print {$self->{file}} $data or die;
     $self->{actlen} = (stat $self->{file})[7];
-} # end AppleII::Disk::DOS33::writeSector
+} # end AppleII::Disk::DOS33::write_sector
 
 #---------------------------------------------------------------------
 # Write a block to a DOS33 order disk:
 #
-# See AppleII::Disk::writeBlock
+# See AppleII::Disk::write_block
 
-sub writeBlock
+sub write_block
 {
     my ($self, $block, $data, $pad) = @_;
     croak("Disk image is read/only") unless $self->{writable};
     my ($track, $sector1, $sector2) = block2sector($block);
 
-    $data = $self->padBlock($data, $pad || '');
+    $data = $self->pad_block($data, $pad || '');
 
-    $self->writeSector($track, $sector1, substr($data,0,0x100));
-    $self->writeSector($track, $sector2, substr($data,0x100,0x100));
-} # end AppleII::Disk::DOS33::writeBlock
+    $self->write_sector($track, $sector1, substr($data,0,0x100));
+    $self->write_sector($track, $sector2, substr($data,0x100,0x100));
+} # end AppleII::Disk::DOS33::write_block
 
 #=====================================================================
 # Package Return Value:

@@ -1,13 +1,15 @@
 #!perl
 #---------------------------------------------------------------------
-# $Id: prodos.pl,v 0.5 1996/08/03 17:09:47 Madsen Exp $
+# $Id: prodos.pl,v 0.6 1996/08/03 19:43:38 Madsen Exp $
 # Copyright 1996 Christopher J. Madsen
 #
 # A command-line shell for accessing ProDOS disk images
 #---------------------------------------------------------------------
 
-use AppleII::ProDOS qw(0.014 shell_wc);
+use AppleII::ProDOS qw(0.015 shell_wc);
 use Term::ReadLine;
+
+my @commands = qw(cd get lcd ls ll put pwd quit type);
 
 my $term = Term::ReadLine->new('ProDOS Shell');
 
@@ -16,12 +18,12 @@ if ($term->ReadLine eq 'Term::ReadLine::readline_pl') {
     $readline::rl_completer_word_break_characters =
     $readline::rl_completer_word_break_characters = " \t\n";
     $readline::rl_completion_function =
-    $readline::rl_completion_function = \&completeWord;
+    $readline::rl_completion_function = \&complete_word;
 } # end if readline.pl
 
 my $vol  = AppleII::ProDOS->open($ARGV[0],'w');
 
-print $vol->directory,"\n";
+print $vol->path,"\n";
 
 while (1) {
     $_ = $term->readline(']');
@@ -34,14 +36,15 @@ while (1) {
     last if $cmd =~ /^q(?:uit)?$/;
     eval {
       CMD: {
-        print($vol->directory,"\n"),        next CMD if $cmd eq 'pwd';
-        print($vol->directory($arg),"\n"),  next CMD if $cmd eq 'cd';
-        print($vol->catalog,"\n"),          next CMD if $cmd eq 'cat';
-        print($vol->getFile($arg)->asText), next CMD if $cmd eq 'type';
-        getFile($vol,$arg),                 next CMD if $cmd eq 'get';
-        putFile($vol,$arg),                 next CMD if $cmd eq 'put';
-        system('/bin/sh'),                  next CMD if $cmd eq '!';
-        system(substr("$cmd $arg",1)),      next CMD if $cmd =~ /^!/;
+        print($vol->path,"\n"),              next CMD if $cmd eq 'pwd';
+        print($vol->path($arg),"\n"),        next CMD if $cmd eq 'cd';
+        print($vol->catalog,"\n"),           next CMD if $cmd =~ /^l[sl]$/;
+        print($vol->get_file($arg)->as_text),next CMD if $cmd eq 'type';
+        get_file($vol,$arg),                 next CMD if $cmd eq 'get';
+        put_file($vol,$arg),                 next CMD if $cmd eq 'put';
+        (chdir($arg) || die "Bad directory"),next CMD if $cmd eq 'lcd';
+        system('/bin/sh'),                   next CMD if $cmd eq '!';
+        system(substr("$cmd $arg",1)),       next CMD if $cmd =~ /^!/;
         print "Bad command `$cmd'\a\n";
       } # end CMD
     }; # end eval
@@ -56,32 +59,32 @@ exit;
 #=====================================================================
 # Subroutines:
 #---------------------------------------------------------------------
-sub completeWord
+sub complete_word
 {
   my ($text, $line, $start) = @_;
-  return grep(/^$text/, qw(cat cd get put pwd quit type)) if $start == 0;
-  return &readline::rl_filename_list   if $line =~ /^put\b/;
-  return $vol->listMatches(shell_wc("$text*"),'DIR') if $line =~ /^cd\b/;
-  $vol->listMatches(shell_wc("$text*"),'!DIR');
-} # end completeWord
+  return grep(/^$text/, @commands)     if $start == 0;
+  return &readline::rl_filename_list   if $line =~ /^(?:put|lcd)\b/;
+  return $vol->dir->list_matches(shell_wc("$text*"),'DIR') if $line =~ /^cd\b/;
+  $vol->dir->list_matches(shell_wc("$text*"),'!DIR');
+} # end complete_word
 
 #---------------------------------------------------------------------
-sub getFile
+sub get_file
 {
     my ($vol, $arg) = @_;
 
     die "$arg already exists" if -e $arg;
 
-    my $file = $vol->getFile($arg);
+    my $file = $vol->get_file($arg);
 
     open(OUT, ">$arg") or die;
     binmode OUT;
     print OUT $file->data;
     close OUT;
-} # end getFile
+} # end get_file
 
 #---------------------------------------------------------------------
-sub putFile
+sub put_file
 {
     my ($vol, $arg) = @_;
 
@@ -98,5 +101,5 @@ sub putFile
         $file->auxtype(0x8102);
     }
 
-    $vol->putFile($file);
-} # end putFile
+    $vol->put_file($file);
+} # end put_file

@@ -5,7 +5,7 @@ package AppleII::ProDOS;
 #
 # Author: Christopher J. Madsen <ac608@yfn.ysu.edu>
 # Created: 26 Jul 1996
-# Version: $Revision: 0.14 $ ($Date: 1996/08/03 17:07:39 $)
+# Version: $Revision: 0.15 $ ($Date: 1996/08/03 19:36:29 $)
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the same terms as Perl itself.
@@ -19,18 +19,18 @@ package AppleII::ProDOS;
 #---------------------------------------------------------------------
 
 require 5.000;
-use AppleII::Disk 0.007;
+use AppleII::Disk 0.008;
 use Carp;
 use POSIX 'mktime';
 use strict;
-use vars qw(@ISA @EXPORT @EXPORT_OK $VERSION $AUTOLOAD);
+use vars qw(@ISA @EXPORT @EXPORT_OK $VERSION);
 
 require Exporter;
 @ISA = qw(Exporter);
 @EXPORT = qw();
 @EXPORT_OK = qw(
-    packDate packName parseDate parseName parseType shell_wc shortDate
-    validName a2_croak
+    pack_date pack_name parse_date parse_name parse_type shell_wc
+    short_date valid_name a2_croak
 );
 
 #=====================================================================
@@ -39,7 +39,7 @@ require Exporter;
 BEGIN
 {
     # Convert RCS revision number to d.ddd format:
-    ' $Revision: 0.14 $ ' =~ / (\d+)\.(\d{1,3})(\.[0-9.]+)? /
+    ' $Revision: 0.15 $ ' =~ / (\d+)\.(\d{1,3})(\.[0-9.]+)? /
         or die "Invalid version number";
     $VERSION = $VERSION = sprintf("%d.%03d%s",$1,$2,$3);
 } # end BEGIN
@@ -63,13 +63,6 @@ my @filetypes = qw(
     LBR $E1 ATK $E3 $E4 $E5 $E6 $E7 $E8 $E9 $EA $EB $EC $ED R16 PAS
     CMD $F1 $F2 $F3 $F4 $F5 $F6 $F7 $F8 OS  INT IVR BAS VAR REL SYS
 ); # end filetypes
-
-my %dir_methods = (
-    findEntry   => undef,
-    getFile     => undef,
-    listMatches => undef,
-    openDir     => undef,
-);
 
 #=====================================================================
 # package AppleII::ProDOS:
@@ -106,14 +99,14 @@ my %dir_methods = (
 sub open
 {
     my ($type, $disk, $mode) = @_;
-    my $self = { _dir_methods => \%dir_methods };
+    my $self = {};
     $disk = AppleII::Disk->new($disk, $mode) unless ref $disk;
     $self->{disk} = $disk;
 
-    my $volDir = $disk->readBlock(2);
+    my $volDir = $disk->read_block(2);
 
     my $storageType;
-    ($storageType, $self->{volume}) = parseName(substr($volDir,0x04,16));
+    ($storageType, $self->{volume}) = parse_name(substr($volDir,0x04,16));
     croak('This is not a ProDOS disk') unless $storageType == 0xF;
 
     my ($startBlock, $diskSize) = unpack('x39v2',$volDir);
@@ -145,58 +138,58 @@ sub catalog
 } # end AppleII::ProDOS::catalog
 
 #---------------------------------------------------------------------
-# Return or change the current directory:
-#
-# Input:
-#   newdir:  The directory to change to
+# Return the current directory:
 #
 # Returns:
-#   The current directory (begins and ends with '/')
+#   The current AppleII::ProDOS::Directory
 
-sub directory
+sub dir {
+    shift->{directories}[-1];
+} # end AppleII::ProDOS::dir
+
+#---------------------------------------------------------------------
+sub get_file
 {
-    my ($self, $newdir) = @_;
+    shift->{directories}[-1]->get_file(@_);
+} # end AppleII::ProDOS::get_file
 
-    if ($newdir) {
+#---------------------------------------------------------------------
+# Return or change the current path:
+#
+# Input:
+#   newpath:  The path to change to
+#
+# Returns:
+#   The current path (begins and ends with '/')
+
+sub path
+{
+    my ($self, $newpath) = @_;
+
+    if ($newpath) {
         # Change directory:
         my @directories = @{$self->{directories}};
-        $#directories = 0 if $newdir =~ s!^/\Q$self->{volume}\E/?!!i;
-        pop @directories while $#directories and $newdir =~ s'^\.\.(?:/|$)'';#'
+        $#directories = 0 if $newpath =~ s!^/\Q$self->{volume}\E/?!!i;
+        pop @directories
+            while $#directories and $newpath =~ s'^\.\.(?:/|$)''; #'
         my $dir;
-        foreach $dir (split(/\//, $newdir)) {
-            eval { push @directories, $directories[-1]->openDir($dir) };
+        foreach $dir (split(/\//, $newpath)) {
+            eval { push @directories, $directories[-1]->open_dir($dir) };
             croak("No such directory `$_[1]'") if $@ =~ /^No such directory/;
             die $@ if $@;
         }
         $self->{directories} = \@directories;
-    } # end if changing directory
+    } # end if changing path
 
     '/'.join('/',map { $_->{name} } @{$self->{directories}}).'/';
-} # end AppleII::ProDOS::directory
+} # end AppleII::ProDOS::path
 
 #---------------------------------------------------------------------
-sub putFile
+sub put_file
 {
     my $self = shift;
-    $self->{directories}[-1]->putFile($self->{bitmap}, @_);
-} # end AppleII::ProDOS::putFile
-
-#---------------------------------------------------------------------
-# Pass method calls along to the current directory:
-
-sub AUTOLOAD
-{
-    my $self = shift;
-    my $name = $AUTOLOAD;
-    $name =~ s/.*://;   # strip fully-qualified portion
-    unless (exists $self->{'_dir_methods'}{$name}) {
-        # Ignore special methods like DESTROY:
-        return undef if $name =~ /^[A-Z]+$/;
-        croak("Can't find method `$name'");
-    }
-
-    $self->{directories}[-1]->$name(@_);
-} # end AppleII::ProDOS::AUTOLOAD
+    $self->{directories}[-1]->put_file($self->{bitmap}, @_);
+} # end AppleII::ProDOS::put_file
 
 #---------------------------------------------------------------------
 # Like croak, but get out of all AppleII::ProDOS classes:
@@ -221,11 +214,11 @@ sub a2_croak
 # Returns:
 #   Packed string
 
-sub packDate
+sub pack_date
 {
     my ($minute,$hour,$day,$month,$year) = (localtime($_[0]))[1..5];
     pack('vC2', ($year<<9) + (($month+1)<<5) + $day, $minute, $hour);
-} # end AppleII::ProDOS::packDate
+} # end AppleII::ProDOS::pack_date
 
 #---------------------------------------------------------------------
 # Convert a filename to ProDOS format (length nibble):
@@ -239,10 +232,10 @@ sub packDate
 # Returns:
 #   Packed string
 
-sub packName
+sub pack_name
 {
     pack('Ca15',($_[0] << 4) + length($_[1]), uc $_[1]);
-} # end AppleII::ProDOS::packName
+} # end AppleII::ProDOS::pack_name
 
 #---------------------------------------------------------------------
 # Extract a date & time:
@@ -256,13 +249,13 @@ sub packName
 #   Standard time for use with gmtime (not localtime)
 #   undef if no date
 
-sub parseDate
+sub parse_date
 {
     my ($date, $minute, $hour) = unpack('vC2', $_[0]);
     return undef unless $date;
     my ($year, $month, $day) = ($date>>9, (($date>>5) & 0x0F), $date & 0x1F);
     mktime(0, $minute, $hour, $day, $month-1, $year);
-} # end AppleII::ProDOS::parseDate
+} # end AppleII::ProDOS::parse_date
 
 #---------------------------------------------------------------------
 # Extract a filename:
@@ -275,11 +268,11 @@ sub parseDate
 # Returns:
 #   (type, name)
 
-sub parseName
+sub parse_name
 {
     my $typeLen = ord $_[0];
     ($typeLen >> 4, substr($_[0],1,$typeLen & 0x0F));
-} # end AppleII::ProDOS::parseName
+} # end AppleII::ProDOS::parse_name
 
 #---------------------------------------------------------------------
 # Convert a filetype to its abbreviation:
@@ -292,10 +285,10 @@ sub parseName
 # Returns:
 #   The abbreviation for the filetype
 
-sub parseType
+sub parse_type
 {
     $filetypes[$_[0]];
-} # end AppleII::ProDOS::parseType
+} # end AppleII::ProDOS::parse_type
 
 #---------------------------------------------------------------------
 # Convert shell-type wildcards to Perl regexps:
@@ -327,13 +320,13 @@ sub shell_wc
 
 my @months = qw(Jan Feb Mar Apr May Jun Jul Aug Sep Oct Nov Dec);
 
-sub shortDate
+sub short_date
 {
     my ($date, $minute, $hour) = unpack('vC2', $_[0]);
     return "<No Date>      " unless $date;
     my ($year, $month, $day) = ($date>>9, (($date>>5) & 0x0F), $date & 0x1F);
     sprintf('%2d-%s-%02d %2d:%02d',$day,$months[$month-1],$year,$hour,$minute);
-} # end AppleII::ProDOS::shortDate
+} # end AppleII::ProDOS::short_date
 
 #---------------------------------------------------------------------
 # Determine if a filename is valid:
@@ -346,10 +339,10 @@ sub shortDate
 # Returns:
 #   True if the filename is valid
 
-sub validName
+sub valid_name
 {
     $_[-1] =~ /\A[a-z][a-z0-9.]{0,14}\Z(?!\n)/i;
-} # end AppleII::ProDOS::validName
+} # end AppleII::ProDOS::valid_name
 
 #=====================================================================
 package AppleII::ProDOS::Bitmap;
@@ -393,7 +386,7 @@ sub open
     $self->{disk} = $disk;
     $self->{'_permitted'} = \%fields;
     unless ($startBlock and $diskSize) {
-        my $volDir = $disk->readBlock(2);
+        my $volDir = $disk->read_block(2);
         ($startBlock, $diskSize) = unpack('v2',substr($volDir,0x27,4));
     }
     $self->{diskSize} = $diskSize;
@@ -402,7 +395,7 @@ sub open
     } while ($diskSize -= 0x1000) > 0;
 
     bless $self, $type;
-    $self->readDisk;
+    $self->read_disk;
     $self;
 } # end AppleII::ProDOS::Bitmap::open
 
@@ -416,14 +409,14 @@ sub open
 #   A list of block numbers (which have been marked as used)
 #   The empty list if there aren't enough free blocks
 
-sub getBlocks
+sub get_blocks
 {
     my ($self, $count) = @_;
     return () if $count > $self->{free};
     my (@blocks,$i);
     my $diskSize = $self->{diskSize};
     for ($i=3; $i < $diskSize; $i++) {
-        if ($self->isFree($i)) {
+        if ($self->is_free($i)) {
             push @blocks, $i;
             last unless --$count;
         }
@@ -431,7 +424,7 @@ sub getBlocks
     return () if $count;        # We couldn't find enough
     $self->mark(\@blocks,0);    # Mark blocks as in use
     @blocks;
-} # end AppleII::ProDOS::Bitmap::getBlocks
+} # end AppleII::ProDOS::Bitmap::get_blocks
 
 #---------------------------------------------------------------------
 # See if a block is free:
@@ -442,12 +435,12 @@ sub getBlocks
 # Returns:
 #   True if the block is free
 
-sub isFree
+sub is_free
 {
     my ($self, $block) = @_;
     croak("No block $block") if $block < 0 or $block >= $self->{diskSize};
     vec($self->{bitmap}, $block + $adjust[$block % 8],1);
-} # end AppleII::ProDOS::Bitmap::isFree
+} # end AppleII::ProDOS::Bitmap::is_free
 
 #---------------------------------------------------------------------
 # Mark blocks as free or used:
@@ -468,26 +461,26 @@ sub mark
         vec($self->{bitmap}, $block + $adjust[$block % 8],1) = $mark;
     }
     $self->{free} += ($mark ? 1 : -1) * ($#$blocks + 1);
-} # end AppleII::ProDOS::Bitmap::isFree
+} # end AppleII::ProDOS::Bitmap::is_free
 
 #---------------------------------------------------------------------
 # Read bitmap from disk:
 
-sub readDisk
+sub read_disk
 {
     my $self = shift;
-    $self->{bitmap} = $self->{disk}->readBlocks($self->{blocks});
+    $self->{bitmap} = $self->{disk}->read_blocks($self->{blocks});
     $self->{free}   = unpack('%32b*', $self->{bitmap});
-} # end AppleII::ProDOS::Bitmap::readDisk
+} # end AppleII::ProDOS::Bitmap::read_disk
 
 #---------------------------------------------------------------------
 # Write bitmap to disk:
 
-sub writeDisk
+sub write_disk
 {
     my $self = shift;
-    $self->{disk}->writeBlocks($self->{blocks}, $self->{bitmap});
-} # end AppleII::ProDOS::Bitmap::writeDisk
+    $self->{disk}->write_blocks($self->{blocks}, $self->{bitmap});
+} # end AppleII::ProDOS::Bitmap::write_disk
 
 #=====================================================================
 package AppleII::ProDOS::Directory;
@@ -519,7 +512,7 @@ package AppleII::ProDOS::Directory;
 #   parentNum:  Our entry number within the parent directory
 #---------------------------------------------------------------------
 
-AppleII::ProDOS->import(qw(a2_croak packName parseName shortDate));
+AppleII::ProDOS->import(qw(a2_croak pack_name parse_name short_date));
 use Carp;
 use strict;
 
@@ -544,7 +537,7 @@ sub open
     }
 
     bless $self, $type;
-    $self->readDisk($block);
+    $self->read_disk($block);
     $self;
 } # end AppleII::ProDOS::Directory::open
 
@@ -556,12 +549,12 @@ sub open
 # Input:
 #   entry:  An AppleII::ProDOS::DirEntry
 
-sub addEntry
+sub add_entry
 {
     my ($self,$entry) = @_;
 
     a2_croak($entry->name . ' already exists')
-        if $self->findEntry($entry->name);
+        if $self->find_entry($entry->name);
 
     my $entries = $self->{entries};
 
@@ -576,7 +569,7 @@ sub addEntry
 
     $entry->{num} = $i+1;
     splice @$entries, $i, 0, $entry;
-} # end AppleII::ProDOS::Directory::addEntry
+} # end AppleII::ProDOS::Directory::add_entry
 
 #---------------------------------------------------------------------
 # Return the catalog:
@@ -593,9 +586,9 @@ sub catalog
     my $entry;
     foreach $entry (@{$self->{entries}}) {
         $result .= sprintf("%-15s %-3s %5d  %s %s %8d  \$%04X\n",
-                           $entry->name, $entry->shortType, $entry->blksUsed,
-                           shortDate($entry->modified),
-                           shortDate($entry->created),
+                           $entry->name, $entry->short_type, $entry->blksUsed,
+                           short_date($entry->modified),
+                           short_date($entry->created),
                            $entry->size, $entry->auxtype);
     }
     $result;
@@ -610,12 +603,12 @@ sub catalog
 # Returns:
 #   The entry representing that filename
 
-sub findEntry
+sub find_entry
 {
     my ($self, $filename) = @_;
     $filename = uc $filename;
     (grep {uc($_->name) eq $filename} @{$self->{entries}})[0];
-} # end AppleII::ProDOS::Directory::findEntry
+} # end AppleII::ProDOS::Directory::find_entry
 
 #---------------------------------------------------------------------
 # Read a file:
@@ -626,15 +619,15 @@ sub findEntry
 # Returns:
 #   A new AppleII::ProDOS::File object for the file
 
-sub getFile
+sub get_file
 {
     my ($self, $filename) = @_;
 
-    my $entry = $self->findEntry($filename)
+    my $entry = $self->find_entry($filename)
         or a2_croak("No such file `$filename'");
 
     AppleII::ProDOS::File->open($self->{disk}, $entry);
-} # end AppleII::ProDOS::Directory::getFile
+} # end AppleII::ProDOS::Directory::get_file
 
 #---------------------------------------------------------------------
 # List files matching a regexp:
@@ -654,21 +647,21 @@ sub getFile
 # Returns:
 #   A list of filenames matching the pattern
 
-sub listMatches
+sub list_matches
 {
     my ($self, $pattern, $filter) = @_;
-    $filter = \&isDir   if $filter eq 'DIR';
-    $filter = \&isntDir if $filter eq '!DIR';
-    $filter = \&true    unless $filter;
+    $filter = \&is_dir   if $filter eq 'DIR';
+    $filter = \&isnt_dir if $filter eq '!DIR';
+    $filter = \&true     unless $filter;
     map { ($_->name =~ /$pattern/i and &$filter($_))
           ? $_->name
           : () }
         @{$self->{entries}};
-} # end AppleII::ProDOS::Directory::listMatches
+} # end AppleII::ProDOS::Directory::list_matches
 
-sub isDir   { $_[0]->type == 0x0F } # True if entry is directory
-sub isntDir { $_[0]->type != 0x0F } # True if entry is not directory
-sub true    { 1 }                   # Accept anything
+sub is_dir   { $_[0]->type == 0x0F } # True if entry is directory
+sub isnt_dir { $_[0]->type != 0x0F } # True if entry is not directory
+sub true     { 1 }                   # Accept anything
 
 #---------------------------------------------------------------------
 # Open a subdirectory:
@@ -679,16 +672,16 @@ sub true    { 1 }                   # Accept anything
 # Returns:
 #   A new AppleII::ProDOS::Directory object for the subdirectory
 
-sub openDir
+sub open_dir
 {
     my ($self, $dir) = @_;
 
-    my $entry = $self->findEntry($dir)
+    my $entry = $self->find_entry($dir)
         or a2_croak("No such directory `$dir'");
 
     AppleII::ProDOS::Directory->open($self->{disk}, $entry->block,
                                      $self->{blocks}[0], $entry->num);
-} # end AppleII::ProDOS::Directory::openDir
+} # end AppleII::ProDOS::Directory::open_dir
 
 #---------------------------------------------------------------------
 # Add a new file to the directory:
@@ -697,30 +690,30 @@ sub openDir
 #   bitmap:  The AppleII::ProDOS::Bitmap for the disk
 #   file:    The AppleII::ProDOS::File to add
 
-sub putFile
+sub put_file
 {
     my ($self, $bitmap, $file) = @_;
 
     eval {
-        $file->allocateSpace($bitmap);
-        $self->addEntry($file);
-        $file->writeDisk($self->{disk});
-        $self->writeDisk;
-        $bitmap->writeDisk;
+        $file->allocate_space($bitmap);
+        $self->add_entry($file);
+        $file->write_disk($self->{disk});
+        $self->write_disk;
+        $bitmap->write_disk;
     };
     if ($@) {
         my $error = $@;
         # Clean up after failure:
-        $self->readDisk;
-        $bitmap->readDisk;
+        $self->read_disk;
+        $bitmap->read_disk;
         die $error;
     }
-} # end AppleII::ProDOS::Directory::putFile
+} # end AppleII::ProDOS::Directory::put_file
 
 #---------------------------------------------------------------------
 # Read directory from disk:
 
-sub readDisk
+sub read_disk
 {
     my ($self, $block) = @_;
     $block = $self->{blocks}[0] unless $block;
@@ -730,11 +723,11 @@ sub readDisk
     my $entry = 0;
     while ($block) {
         push @blocks, $block;
-        my $data = $disk->readBlock($block);
+        my $data = $disk->read_block($block);
         $block = unpack('v',substr($data,0x02,2)); # Pointer to next block
         substr($data,0,4) = '';                    # Remove block pointers
         while ($data) {
-            my ($type, $name) = parseName($data);
+            my ($type, $name) = parse_name($data);
             if (($type & 0xE) == 0xE) {
                 # Directory header
                 $self->{name} = $name;
@@ -757,12 +750,12 @@ sub readDisk
 
     $self->{blocks}  = \@blocks;
     $self->{entries} = \@entries;
-} # end AppleII::ProDOS::Directory::readDisk
+} # end AppleII::ProDOS::Directory::read_disk
 
 #---------------------------------------------------------------------
 # Write directory to disk:
 
-sub writeDisk
+sub write_disk
 {
     my ($self) = @_;
 
@@ -786,7 +779,7 @@ sub writeDisk
                 }
             } else {
                 # Add the directory header:
-                $data .= packName(@{$self}{'type','name'});
+                $data .= pack_name(@{$self}{'type','name'});
                 $data .= "\0" x 8; # 8 bytes reserved
                 $data .= $self->{created};
                 $data .= $self->{version};
@@ -802,9 +795,9 @@ sub writeDisk
             } # end else if directory header
             ++$entry;
         } # end while more room in block
-        $disk->writeBlock($blocks[$i],$data."\0");
+        $disk->write_block($blocks[$i],$data."\0");
     } # end for each directory block
-} # end AppleII::ProDOS::Directory::writeDisk
+} # end AppleII::ProDOS::Directory::write_disk
 
 #=====================================================================
 package AppleII::ProDOS::DirEntry;
@@ -822,7 +815,8 @@ package AppleII::ProDOS::DirEntry;
 #   storage:  The storage type
 #   type:     The file type
 #---------------------------------------------------------------------
-AppleII::ProDOS->import(qw(packDate packName parseName parseType validName));
+AppleII::ProDOS->import(qw(pack_date pack_name parse_name parse_type
+                           valid_name));
 use integer;
 use strict;
 use vars '@ISA';
@@ -836,7 +830,7 @@ my %fields = (
     blksUsed    => sub { not defined $_[0]{blksUsed} },
     created     => 0xFFFF,      # FIXME need better validator
     modified    => 0xFFFF,      # FIXME need better validator
-    name        => \&validName,
+    name        => \&valid_name,
     num         => sub { not defined $_[0]{num}  },
     size        => sub { not defined $_[0]{size} },
     type        => 0xFF,
@@ -857,7 +851,7 @@ sub new
     $self->{'_permitted'} = \%fields;
     if ($entry) {
         $self->{num} = $number;
-        @{$self}{'storage', 'name'} = parseName($entry);
+        @{$self}{'storage', 'name'} = parse_name($entry);
         @{$self}{qw(type block blksUsed size)} = unpack('x16Cv2V',$entry);
         $self->{size} &= 0xFFFFFF;  # Size is only 3 bytes long
         @{$self}{qw(access auxtype)} = unpack('x30Cv',$entry);
@@ -866,7 +860,7 @@ sub new
         $self->{modified} = substr($entry,0x21,4);
     } else {
         # Blank entry:
-        $self->{created} = $self->{modified} = packDate(time);
+        $self->{created} = $self->{modified} = pack_date(time);
     }
     bless $self, $type;
 } # end AppleII::ProDOS::DirEntry::new
@@ -883,7 +877,7 @@ sub new
 sub packed
 {
     my ($self, $keyBlock) = @_;
-    my $data = packName(@{$self}{'storage', 'name'});
+    my $data = pack_name(@{$self}{'storage', 'name'});
     $data .= pack('Cv2VX',@{$self}{qw(type block blksUsed size)});
     $data .= $self->{created} . "\0\0";
     $data .= pack('Cv',@{$self}{qw(access auxtype)});
@@ -894,10 +888,10 @@ sub packed
 #---------------------------------------------------------------------
 # Return the filetype as a string:
 
-sub shortType
+sub short_type
 {
-    parseType(shift->{type});
-} # end AppleII::ProDOS::DirEntry::shortType
+    parse_type(shift->{type});
+} # end AppleII::ProDOS::DirEntry::short_type
 
 #=====================================================================
 package AppleII::ProDOS::File;
@@ -906,7 +900,7 @@ package AppleII::ProDOS::File;
 #   data:         The contents of the file
 #   indexBlocks:  For tree files, the number of subindex blocks needed
 #
-# Private Members (for communication between allocateSpace & writeDisk):
+# Private Members (for communication between allocate_space & write_disk):
 #   blocks:       The list of data blocks allocated for this file
 #   indexBlocks:  For tree files, the list of subindex blocks
 #---------------------------------------------------------------------
@@ -924,7 +918,7 @@ my %fields = (
     created     => 0xFFFF,      # FIXME need better validator
     data        => undef,
     modified    => 0xFFFF,      # FIXME need better validator
-    name        => \&validName,
+    name        => \&valid_name,
     size        => undef,
     type        => 0xFF,
 );
@@ -984,10 +978,10 @@ sub open
 
     my $data;
     if ($storage == 1) {
-        $data = $disk->readBlock($keyBlock);
+        $data = $disk->read_block($keyBlock);
     } elsif ($storage == 2) {
         my $index = AppleII::ProDOS::Index->open($disk,$keyBlock,$blksUsed-1);
-        $data = $disk->readBlocks($index->blocks);
+        $data = $disk->read_blocks($index->blocks);
     } elsif ($storage == 3) {
         my $blksUsed    = int(($size + 0x1FF) / 0x200);
         my $indexBlocks = int(($blksUsed + 0xFF) / 0x100);
@@ -998,7 +992,7 @@ sub open
             push @blocks,@{$subindex->blocks};
         }
         $#blocks = $blksUsed-1; # Use only the first $blksUsed blocks
-        $data = $disk->readBlocks(\@blocks);
+        $data = $disk->read_blocks(\@blocks);
         $self->{indexBlocks} = $indexBlocks;
     } else {
         croak("Unsupported storage type $storage");
@@ -1023,11 +1017,11 @@ sub open
 #   blocks:       The list of data blocks allocated
 #   indexBlocks:  The list of subindex blocks allocated
 
-sub allocateSpace
+sub allocate_space
 {
     my ($self, $bitmap) = @_;
 
-    my @blocks = $bitmap->getBlocks($self->{blksUsed})
+    my @blocks = $bitmap->get_blocks($self->{blksUsed})
         or a2_croak("Not enough free space");
 
     my $storage = $self->{storage};
@@ -1043,7 +1037,7 @@ sub allocateSpace
     croak("Unsupported storage type $storage") unless $storage < 4;
 
     $self->{blocks} = \@blocks;
-} # end AppleII::ProDOS::File::allocateSpace
+} # end AppleII::ProDOS::File::allocate_space
 
 #---------------------------------------------------------------------
 # Return the file's contents as text:
@@ -1051,18 +1045,18 @@ sub allocateSpace
 # Returns:
 #   The file's contents with hi bits stripped and CRs converted to \n
 
-sub asText
+sub as_text
 {
     my $self = shift;
     my $data = $self->{data};
     $data =~ tr/\r\x8D\x80-\xFF/\n\n\x00-\x7F/;
     $data;
-} # end AppleII::ProDOS::File::asText
+} # end AppleII::ProDOS::File::as_text
 
 #---------------------------------------------------------------------
 # Write the file to disk:
 #
-# You must have already called allocateSpace.
+# You must have already called allocate_space.
 #
 # Input:
 #   disk:  The disk to write to
@@ -1074,33 +1068,33 @@ sub asText
 # Output Variables:
 #   indexBlocks:  The number of subindex blocks needed
 
-sub writeDisk
+sub write_disk
 {
     my ($self, $disk) = @_;
 
-    $disk->writeBlocks($self->{blocks}, $self->{'data'}, "\0");
+    $disk->write_blocks($self->{blocks}, $self->{'data'}, "\0");
 
     my $storage = $self->{storage};
     if ($storage == 2) {
         my $index = AppleII::ProDOS::Index->new($disk,
                                                 @{$self}{qw(block blocks)});
-        $index->writeDisk;
+        $index->write_disk;
     } elsif ($storage == 3) {
         my $index =
           AppleII::ProDOS::Index->new($disk, @{$self}{qw(block indexBlocks)});
-        $index->writeDisk;
+        $index->write_disk;
         my @blocks = @{$self->{blocks}};
         my $block;
         foreach $block (@{$self->{indexBlocks}}) {
             $index = AppleII::ProDOS::Index->new($disk, $block,
                                                  [splice(@blocks,0,0x100)]);
-            $index->writeDisk;
+            $index->write_disk;
         }
         $self->{indexBlocks} = $#{$self->{indexBlocks}};
     } # end elsif tree file
 
     delete $self->{blocks};
-} # end AppleII::ProDOS::File::writeDisk
+} # end AppleII::ProDOS::File::write_disk
 
 #=====================================================================
 package AppleII::ProDOS::Index;
@@ -1160,7 +1154,7 @@ sub open
     $self->{'_permitted'} = \%fields;
 
     bless $self, $type;
-    $self->readDisk($count);
+    $self->read_disk($count);
     $self;
 } # end AppleII::ProDOS::Index::open
 
@@ -1172,11 +1166,11 @@ sub open
 #     The number of blocks that are pointed to by this block
 #     (optional; default is 256)
 
-sub readDisk
+sub read_disk
 {
     my ($self, $count) = @_;
     $count = 0x100 unless $count;
-    my @dataLo = unpack('C*',$self->{disk}->readBlock($self->{block}));
+    my @dataLo = unpack('C*',$self->{disk}->read_block($self->{block}));
     my @dataHi = splice @dataLo, 0x100;
     my @blocks;
 
@@ -1185,12 +1179,12 @@ sub readDisk
     }
 
     $self->{blocks} = \@blocks;
-} # end AppleII::ProDOS::Index::readDisk
+} # end AppleII::ProDOS::Index::read_disk
 
 #---------------------------------------------------------------------
 # Write bitmap to disk:
 
-sub writeDisk
+sub write_disk
 {
     my $self = shift;
     my $disk = $self->{disk};
@@ -1200,10 +1194,10 @@ sub writeDisk
     $dataLo =~ s/([\s\S])[\s\S]/$1/g; # Keep just the low byte
     $dataHi =~ s/[\s\S]([\s\S])/$1/g; # Keep just the high byte
 
-    $disk->writeBlock($self->{block},
-                      $disk->padBlock($dataLo,"\0",0x100) . $dataHi,
-                      "\0");
-} # end AppleII::ProDOS::Index::writeDisk
+    $disk->write_block($self->{block},
+                       $disk->pad_block($dataLo,"\0",0x100) . $dataHi,
+                       "\0");
+} # end AppleII::ProDOS::Index::write_disk
 
 #=====================================================================
 package AppleII::ProDOS::Members;
