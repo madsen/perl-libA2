@@ -5,7 +5,7 @@ package AppleII::ProDOS;
 #
 # Author: Christopher J. Madsen <ac608@yfn.ysu.edu>
 # Created: 26 Jul 1996
-# Version: $Revision: 0.20 $ ($Date: 1996/08/14 01:41:39 $)
+# Version: $Revision: 0.21 $ ($Date: 1996/08/14 18:41:15 $)
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the same terms as Perl itself.
@@ -23,7 +23,7 @@ use AppleII::Disk 0.009;
 use Carp;
 use POSIX 'mktime';
 use strict;
-use vars qw(@ISA @EXPORT @EXPORT_OK $VERSION);
+use vars qw(@ISA @EXPORT @EXPORT_OK $VERSION $AUTOLOAD);
 
 require Exporter;
 @ISA = qw(AppleII::ProDOS::Members Exporter);
@@ -40,13 +40,20 @@ my %vol_fields = (
     name     => undef,
 );
 
+# Methods to be passed along to the current directory:
+my %dir_methods = (
+    get_file => undef,
+    new_dir  => undef,
+    put_file => undef,
+);
+
 #=====================================================================
 # Package Global Variables:
 
 BEGIN
 {
     # Convert RCS revision number to d.ddd format:
-    ' $Revision: 0.20 $ ' =~ / (\d+)\.(\d{1,3})(\.[0-9.]+)? /
+    ' $Revision: 0.21 $ ' =~ / (\d+)\.(\d{1,3})(\.[0-9.]+)? /
         or die "Invalid version number";
     $VERSION = $VERSION = sprintf("%d.%03d%s",$1,$2,$3);
 } # end BEGIN
@@ -118,6 +125,7 @@ sub new
         ) ],
         disk   => $disk,
         name   => $name,
+        _dir_methods => \%dir_methods,
         _permitted => \%vol_fields,
     };
 
@@ -148,7 +156,10 @@ sub new
 sub open
 {
     my ($type, $disk, $mode) = @_;
-    my $self = { _permitted => \%vol_fields };
+    my $self = {
+        _dir_methods => \%dir_methods,
+        _permitted   => \%vol_fields,
+    };
     $disk = AppleII::Disk->new($disk, $mode) unless ref $disk;
     $self->{disk} = $disk;
 
@@ -199,18 +210,6 @@ sub dir {
 } # end AppleII::ProDOS::dir
 
 #---------------------------------------------------------------------
-sub get_file
-{
-    shift->{directories}[-1]->get_file(@_);
-} # end AppleII::ProDOS::get_file
-
-#---------------------------------------------------------------------
-sub new_dir
-{
-    shift->{directories}[-1]->new_dir(@_);
-} # end AppleII::ProDOS::new_dir
-
-#---------------------------------------------------------------------
 # Return or change the current path:
 #
 # Input:
@@ -242,10 +241,22 @@ sub path
 } # end AppleII::ProDOS::path
 
 #---------------------------------------------------------------------
-sub put_file
+# Pass method calls along to the current directory:
+
+sub AUTOLOAD
 {
-    shift->{directories}[-1]->put_file(@_);
-} # end AppleII::ProDOS::put_file
+    my $self = $_[0];
+    my $name = $AUTOLOAD;
+    $name =~ s/.*://;   # strip fully-qualified portion
+    unless (ref($self) and exists $self->{'_dir_methods'}{$name}) {
+        # Try to access a field by that name:
+        $AppleII::ProDOS::Members::AUTOLOAD = $AUTOLOAD;
+        goto &AppleII::ProDOS::Members::AUTOLOAD;
+    }
+
+    shift @_; # Remove self
+    $self->{directories}[-1]->$name(@_);
+} # end AppleII::ProDOS::AUTOLOAD
 
 #---------------------------------------------------------------------
 # Like croak, but get out of all AppleII::ProDOS classes:
@@ -1468,13 +1479,15 @@ sub AUTOLOAD
     my $type = ref($self) or croak("$self is not an object");
     my $name = $AUTOLOAD;
     $name =~ s/.*://;   # strip fully-qualified portion
-    unless (exists $self->{'_permitted'}{$name}) {
+    my $field = $name;
+    $field =~ s/_([a-z])/\u$1/g; # squash underlines into mixed case
+    unless (exists $self->{'_permitted'}{$field}) {
         # Ignore special methods like DESTROY:
         return undef if $name =~ /^[A-Z]+$/;
         croak("Can't access `$name' field in object of class $type");
     }
     if ($#_) {
-        my $check = $self->{'_permitted'}{$name};
+        my $check = $self->{'_permitted'}{$field};
         my $ok;
         if (ref($check) eq 'CODE') {
             $ok = &$check;      # Pass our @_ to validator
@@ -1483,10 +1496,10 @@ sub AUTOLOAD
         } else {
             croak("Field `$name' of class $type is read-only");
         }
-        return $self->{$name} = $_[1] if $ok;
+        return $self->{$field} = $_[1] if $ok;
         croak("Invalid value `$_[1]' for field `$name' of class $type");
     }
-    return $self->{$name};
+    return $self->{$field};
 } # end AppleII::ProDOS::Members::AUTOLOAD
 
 #=====================================================================
