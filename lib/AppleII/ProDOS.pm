@@ -5,7 +5,7 @@ package AppleII::ProDOS;
 #
 # Author: Christopher J. Madsen <ac608@yfn.ysu.edu>
 # Created: 26 Jul 1996
-# Version: $Revision: 0.8 $ ($Date: 1996/07/31 18:36:14 $)
+# Version: $Revision: 0.9 $ ($Date: 1996/07/31 19:32:39 $)
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the same terms as Perl itself.
@@ -38,7 +38,7 @@ require Exporter;
 BEGIN
 {
     # Convert RCS revision number to d.ddd format:
-    ' $Revision: 0.8 $ ' =~ / (\d+)\.(\d{1,3})(\.[0-9.]+)? /
+    ' $Revision: 0.9 $ ' =~ / (\d+)\.(\d{1,3})(\.[0-9.]+)? /
         or die "Invalid version number";
     $VERSION = $VERSION = sprintf("%d.%03d%s",$1,$2,$3);
 } # end BEGIN
@@ -136,11 +136,9 @@ sub directory
         pop @directories while $#directories and $newdir =~ s'^\.\.(?:/|$)'';#'
         my $dir;
         foreach $dir (split(/\//, $newdir)) {
-            my $entry = @directories[-1]->findEntry($dir)
-                or croak("No such directory `$_[1]'");
-            push @directories, AppleII::ProDOS::Directory->new(
-                $self->{disk},$entry->block,$directories[-1],$entry->num
-            );
+            eval { push @directories, $directories[-1]->open($dir) };
+            croak("No such directory `$_[1]'") if $@ =~ /^No such directory/;
+            die $@ if $@;
         }
         $self->{directories} = \@directories;
     } # end if changing directory
@@ -422,7 +420,7 @@ package AppleII::ProDOS::Directory;
 #   diskSize:  The number of blocks on the disk
 #
 # For subdirectories:
-#   parent:     The AppleII::ProDOS::Directory containing this directory
+#   parent:     The block number where the parent directory begins
 #   parentNum:  Our entry number within the parent directory
 #---------------------------------------------------------------------
 
@@ -434,9 +432,9 @@ use strict;
 # Constructor:
 #
 # Input:
-#   disk:   An AppleII::Disk
-#   block:  The block number to use
-#   parent:  The parent directory
+#   disk:       An AppleII::Disk
+#   block:      The block number where the directory begins
+#   parent:     The block number where the parent directory begins
 #   parentNum:  The entry number in the parent directory
 
 sub new
@@ -519,6 +517,26 @@ sub findEntry
     $filename = uc $filename;
     (grep {uc($_->name) eq $filename} @{$self->{entries}})[0];
 } # end AppleII::ProDOS::Directory::findEntry
+
+#---------------------------------------------------------------------
+# Open a subdirectory:
+#
+# Input:
+#   dir:  The name of the subdirectory to open
+#
+# Returns:
+#   A new AppleII::ProDOS::Directory object for the subdirectory
+
+sub open
+{
+    my ($self, $dir) = @_;
+
+    my $entry = $self->findEntry($dir)
+        or croak("No such directory `$dir'");
+
+    AppleII::ProDOS::Directory->new($self->{disk}, $entry->block,
+                                    $self->{blocks}[0], $entry->num);
+} # end AppleII::ProDOS::Directory::open
 
 #---------------------------------------------------------------------
 # Read directory from disk:
@@ -794,6 +812,8 @@ sub AUTOLOAD
     my $name = $AUTOLOAD;
     $name =~ s/.*://;   # strip fully-qualified portion
     unless (exists $self->{_permitted}{$name}) {
+        # Ignore special methods like DESTROY:
+        return undef if $name =~ /^[A-Z]+$/;
         croak("Can't access `$name' field in object of class $type");
     }
     if ($#_) {
