@@ -1,0 +1,182 @@
+#!perl
+#---------------------------------------------------------------------
+# $Id: README.PL,v 1.1 1996/08/12 23:30:44 Madsen Exp $
+# Copyright 1996 Christopher J. Madsen
+#
+# Create the README file for LibA2
+#---------------------------------------------------------------------
+
+my $version = '0.001'; # Update Makefile.PL too!
+
+open(STDOUT,'>README') or die;
+
+print "LibA2 $version\n";
+print <<'EOT';
+Copyright 1996 Christopher J. Madsen
+
+LibA2 provides both end-user utilities and library modules for
+accessing files on Apple II ProDOS disk images for use with most Apple
+II emulators.
+
+This is an ALPHA release of LibA2.  This means that documentation is
+minimal (i.e, nonexistent (Use the source, Luke!)), bugs are likely,
+and the interfaces are liable to change.  Use at your own risk.  Keep
+a recent backup handy.  Wait sixty minutes before swimming.
+
+LibA2 is free software; you can redistribute it and/or modify it under
+the same terms as Perl itself.
+
+LibA2 is distributed in the hope that it will be useful, but WITHOUT
+ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
+FITNESS FOR A PARTICULAR PURPOSE.  See either the GNU General Public
+License or the Artistic License for more details.
+
+All this having been said, I'm not aware of any serious bugs in LibA2
+(besides the ones listed in the BUGS section below).  Good luck!
+
+EOT
+#'
+
+print 'The included utilities are:';
+
+list_util('prodos.pl');
+print <<'';
+	`prodos.pl' is the main end-user utility.  It provides a
+	Unix-style shell for accessing ProDOS volumes.  This allows
+	you to list the contents of disk images, create
+	subdirectories, and copy files to & from disk images.  If you
+	have installed the Term::ReadKey and Term::ReadLine modules,
+	the shell will have better editing, command & filename
+	completion, and a command history.
+
+#`
+list_util('pro_fmt.pl');
+print <<'';
+	`pro_fmt.pl' creates blank ProDOS disk images.  The images are
+	NOT bootable, because they lack the necessary code in the boot
+	blocks.  You can copy blocks 0 and 1 from a bootable disk to
+	fix this.  The parameters for pro_fmt are:
+		pro_fmt VOLUME_NAME SIZE_IN_BLOCKS IMAGE_FILE
+	This is likely to change in the future.
+
+#`
+list_util('pro_opt.pl');
+print <<'';
+	`pro_opt.pl' removes unused space from ProDOS disk images.  This
+	is most useful for reducing the size of hard disk images.  It
+	doesn't use any form of compression; it simply moves
+	everything to the beginning of the disk, squashing out empty
+	space caused by deleting files.  Be careful with this, as it's
+	likely to have some bugs left.
+
+#`
+list_util('awp2txt.pl');
+print <<'';
+	`awp2txt.pl' converts AppleWorks word processor files into text
+	files.  This is a bit out of place in LibA2, because it has
+	nothing to do with disk images, but I included it because
+	users of LibA2 may find it useful.
+
+#`
+print <<'EOT';
+
+For people interested in writing their own utilities in Perl, LibA2
+provides Perl 5 modules that supply classes for accessing ProDOS disk
+images.  DOS 3.3 disks are not currently supported (except by
+AppleII::Disk, which doesn't care what kind of data is on the disk).
+
+EOT
+#'
+
+print "The included modules are:";
+
+list_mod('AppleII/Disk.pm');
+print <<'';
+	`AppleII::Disk' provides block-level access to disk images.
+	It's useful because there are two main formats for Apple disk
+	images:  ProDOS order and DOS 3.3 order.  These formats do not
+	refer to the operating system used on the disk, but to the
+	order in which the data appears.  AppleII::Disk takes care of
+	the differences for you.
+
+#`
+list_mod('AppleII/ProDOS.pm');
+print <<'';
+	`AppleII::ProDOS' provides tools for accessing files on ProDOS
+	disk images.  `prodos.pl' is basically just a wrapper around
+	AppleII::ProDOS.
+
+#'
+print <<'EOT';
+
+BUGS
+    If you use Unix or a similar operating system
+	The utilities don't have the executable attribute set.  Sorry,
+	but I use OS/2 and can't figure out how to create tar archives
+	with the executable bit set.  Please change into the `bin'
+	directory and type `chmod a+x *.pl'.  If you know of a better
+	way of fixing this, please let me know.
+
+    Documentation
+	There isn't any.  Yet.
+
+    AppleII::ProDOS
+	Cannot add blocks to a subdirectory.  If you try to add files
+	to a subdirectory with no free entries, it dies.
+
+    prodos.pl
+	There's no way to copy a file from a disk image under another
+	name.  This may cause problems under MS-DOS when extracting
+	files that don't meet its 8.3 filename limitations.
+	Solution: Upgrade to OS/2 and use HPFS. :-)
+
+    pro_fmt.pl
+	The disk images it creates aren't bootable unless you copy the
+	boot blocks from a bootable disk.
+
+AUTHOR
+	Christopher J. Madsen <ac608@yfn.ysu.edu>
+EOT
+#'
+
+exit;
+
+#=====================================================================
+# Subroutines:
+#---------------------------------------------------------------------
+# Print a module name and current version number:
+
+sub list_mod
+{
+    my $file = $_[0];
+    my $version;
+    open(PL,"<lib/$file") or die "Can't open lib/$file";
+    while (<PL>) {
+        $version = $1, last if /^\# Version: ([0-9.]+)/;
+    }
+    close PL;
+    die "No version for $file" unless $version;
+    $file =~ s!/!::!g;
+    $file =~ s/\.pm$//;
+    print "\n    $file\t$version\n";
+} # end list_mod
+
+#---------------------------------------------------------------------
+# Print a script name and current version number:
+
+sub list_util
+{
+    my $file = $_[0];
+    my $version;
+    open(PL,"<bin/$file") or die "Can't open bin/$file";
+    while (<PL>) {
+        $version = $1, last if /^\# $file ([0-9.]+)/i;
+    }
+    close PL;
+    die "No version for $file" unless $version;
+    print "\n    $file\t$version\n";
+} # end list_util
+
+# Local Variables:
+#   tmtrack-file-task: "LibA2: README"
+# End:
