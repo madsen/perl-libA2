@@ -5,7 +5,7 @@ package AppleII::ProDOS;
 #
 # Author: Christopher J. Madsen <ac608@yfn.ysu.edu>
 # Created: 26 Jul 1996
-# Version: $Revision: 0.9 $ ($Date: 1996/07/31 19:32:39 $)
+# Version: $Revision: 0.10 $ ($Date: 1996/07/31 21:24:00 $)
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the same terms as Perl itself.
@@ -38,7 +38,7 @@ require Exporter;
 BEGIN
 {
     # Convert RCS revision number to d.ddd format:
-    ' $Revision: 0.9 $ ' =~ / (\d+)\.(\d{1,3})(\.[0-9.]+)? /
+    ' $Revision: 0.10 $ ' =~ / (\d+)\.(\d{1,3})(\.[0-9.]+)? /
         or die "Invalid version number";
     $VERSION = $VERSION = sprintf("%d.%03d%s",$1,$2,$3);
 } # end BEGIN
@@ -125,6 +125,12 @@ sub catalog
 
 #---------------------------------------------------------------------
 # Return or change the current directory:
+#
+# Input:
+#   newdir:  The directory to change to
+#
+# Returns:
+#   The current directory (begins and ends with '/')
 
 sub directory
 {
@@ -133,6 +139,7 @@ sub directory
     if ($newdir) {
         # Change directory:
         my @directories = @{$self->{directories}};
+        $#directories = 0 if $newdir =~ s!^/\Q$self->{volume}\E/?!!i;
         pop @directories while $#directories and $newdir =~ s'^\.\.(?:/|$)'';#'
         my $dir;
         foreach $dir (split(/\//, $newdir)) {
@@ -145,6 +152,12 @@ sub directory
 
     '/'.join('/',map { $_->{name} } @{$self->{directories}}).'/';
 } # end AppleII::ProDOS::directory
+
+#---------------------------------------------------------------------
+sub getFile
+{
+    shift->{directories}[-1]->getFile(@_);
+} # end AppleII::ProDOS::getFile
 
 #---------------------------------------------------------------------
 # Convert a time to ProDOS format:
@@ -519,6 +532,25 @@ sub findEntry
 } # end AppleII::ProDOS::Directory::findEntry
 
 #---------------------------------------------------------------------
+# Read a file:
+#
+# Input:
+#   file:  The name of the file to read
+#
+# Returns:
+#   A new AppleII::ProDOS::File object for the file
+
+sub getFile
+{
+    my ($self, $filename) = @_;
+
+    my $entry = $self->findEntry($filename)
+        or croak("No such file `$filename'");
+
+    AppleII::ProDOS::File->open($self->{disk}, $entry);
+} # end AppleII::ProDOS::Directory::getFile
+
+#---------------------------------------------------------------------
 # Open a subdirectory:
 #
 # Input:
@@ -721,6 +753,86 @@ sub shortType
 } # end AppleII::ProDOS::DirEntry::shortType
 
 #=====================================================================
+package AppleII::ProDOS::File;
+#
+# Member Variables:
+#   data:  The contents of the file
+#---------------------------------------------------------------------
+
+use vars qw(@ISA);
+
+@ISA = 'AppleII::ProDOS::DirEntry';
+
+my %fields = (
+    access      => 0xFF,
+    auxtype     => 0xFFFF,
+    blocks      => undef,
+    created     => 0xFFFF,      # FIXME need better validator
+    modified    => 0xFFFF,      # FIXME need better validator
+    name        => \&validName,
+    size        => undef,
+    type        => 0xFF,
+);
+
+#---------------------------------------------------------------------
+# Return the file's contents as text:
+#
+# Returns:
+#   The file's contents with hi bits stripped and CRs converted to \n
+
+sub asText
+{
+    my $self = shift;
+    my $data = $self->{data};
+    $data =~ tr/\r\x8D\x80-\xFF/\n\n\x00-\x7F/;
+    $data;
+} # end AppleII::ProDOS::File::asText
+
+#---------------------------------------------------------------------
+# Return the file's contents:
+#
+# Returns:
+#   The file's contents
+
+sub data
+{
+    return shift->{data};
+} # end AppleII::ProDOS::File::data
+
+#---------------------------------------------------------------------
+# Open a file:
+#
+# Input:
+#   disk:   The disk to read
+#   entry:  The AppleII::ProDOS::DirEntry that describes the file
+
+sub open
+{
+    my ($type, $disk, $entry) = @_;
+    my $self = {};
+    my @fields = qw(access auxtype created modified name size type);
+    @{$self}{@fields} = @{$entry}{@fields};
+
+    my ($storage, $keyBlock, $blocks, $size) =
+        @{$entry}{qw(storage block blocks size)};
+
+    my $data;
+    if ($storage == 1) {
+        $data = $disk->readBlock($keyBlock);
+    } elsif ($storage == 2) {
+        my $index = AppleII::ProDOS::Index->new($disk,$keyBlock,$blocks-1);
+        $data = $disk->readBlocks($index->blocks);
+    } else {
+        croak("Unsupported storage type $storage");
+    }
+
+    substr($data, $size) = '' if length($data) > $size;
+    $self->{'data'} = $data;
+
+    bless $self, $type;
+} # end AppleII::ProDOS::File::open
+
+#=====================================================================
 package AppleII::ProDOS::Index;
 #
 # Member Variables:
@@ -731,6 +843,13 @@ package AppleII::ProDOS::Index;
 
 use integer;
 use strict;
+use vars '@ISA';
+
+@ISA = 'AppleII::ProDOS::Members';
+
+my %fields = (
+    blocks => undef,
+);
 
 #---------------------------------------------------------------------
 # Constructor:
@@ -745,6 +864,7 @@ sub new
     my $self = {};
     $self->{disk} = $disk;
     $self->{block} = $block;
+    $self->{'_permitted'} = \%fields;
 
     bless $self, $type;
     $self->readDisk;
