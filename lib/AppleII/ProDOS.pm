@@ -5,7 +5,7 @@ package AppleII::ProDOS;
 #
 # Author: Christopher J. Madsen <ac608@yfn.ysu.edu>
 # Created: 26 Jul 1996
-# Version: $Revision: 0.22 $ ($Date: 1996/08/18 23:35:26 $)
+# Version: $Revision: 0.23 $ ($Date: 1996/08/19 00:57:31 $)
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the same terms as Perl itself.
@@ -54,7 +54,7 @@ my %dir_methods = (
 BEGIN
 {
     # Convert RCS revision number to d.ddd format:
-    ' $Revision: 0.22 $ ' =~ / (\d+)\.(\d{1,3})(\.[0-9.]+)? /
+    ' $Revision: 0.23 $ ' =~ / (\d+)\.(\d{1,3})(\.[0-9.]+)? /
         or die "Invalid version number";
     $VERSION = $VERSION = sprintf("%d.%03d%s",$1,$2,$3);
 } # end BEGIN
@@ -345,6 +345,8 @@ sub parse_type
 #---------------------------------------------------------------------
 # Convert shell-type wildcards to Perl regexps:
 #
+# This is NOT a method; it's just a regular subroutine.
+#
 # Input:
 #   The filename with optional wildcards
 #
@@ -625,6 +627,8 @@ package AppleII::ProDOS::Directory;
 #     The directory name
 #   created:
 #     The date/time the directory was created
+#   reserved:
+#     The contents of the reserved section (8 byte string)
 #   type:
 #     0xF for a volume directory, 0xE for a subdirectory
 #   version:
@@ -692,8 +696,10 @@ sub new
         $self->{type}      = 0xE; # Subdirectory
         $self->{parent}    = $parent;
         $self->{parentNum} = $parentNum;
+        $self->{reserved}  = "\x75\x23\x00\xC3\x27\x0D\x00\x00";
     } else {
         $self->{type} = 0xF;    # Volume directory
+        $self->{reserved} = "\0" x 8; # 8 bytes reserved
     } # end else volume directory
 
     bless $self, $type;
@@ -993,6 +999,7 @@ sub read_disk
                 # Directory header
                 $self->{name} = $name;
                 $self->{type} = $type;
+                $self->{reserved} = substr($data, 0x14-4,8);
                 $self->{created} = substr($data, 0x1C-4,4);
                 $self->{version} = substr($data, 0x20-4,2);
                 $self->{access}  = ord substr($data, 0x22-4,1);
@@ -1054,11 +1061,7 @@ sub write_disk
             } else {
                 # Add the directory header:
                 $data .= pack_name(@{$self}{'type','name'});
-                if ($self->{type} == 0xF) {
-                    $data .= "\0" x 8; # 8 bytes reserved
-                } else {
-                    $data .= "\x75\x23\x00\xC3\x27\x0D\x00\x00";
-                } # end else subdirectory
+                $data .= $self->{reserved};
                 $data .= $self->{created};
                 $data .= $self->{version};
                 $data .= chr $self->{access};
@@ -1093,6 +1096,7 @@ package AppleII::ProDOS::DirEntry;
 #   size:     The file size in bytes
 #   storage:  The storage type
 #   type:     The file type
+#   version:  The contents of the VERSION & MIN_VERSION (2 byte string)
 #---------------------------------------------------------------------
 AppleII::ProDOS->import(qw(pack_date pack_name parse_name parse_type
                            valid_date valid_name));
@@ -1138,10 +1142,12 @@ sub new
 
         $self->{created}  = substr($entry,0x18,4);
         $self->{modified} = substr($entry,0x21,4);
+        $self->{version}  = substr($entry,0x1C,2);
     } else {
         # Blank entry:
         $self->{created} = $self->{modified} = pack_date(time);
-        @{$self}{qw(access auxtype type)} = (0xE3, 0x0000, 0x00);
+        @{$self}{qw(access auxtype type version)} =
+            (0xE3, 0x0000, 0x00, "\0\0");
     }
     bless $self, $type;
 } # end AppleII::ProDOS::DirEntry::new
@@ -1160,7 +1166,7 @@ sub packed
     my ($self, $keyBlock) = @_;
     my $data = pack_name(@{$self}{'storage', 'name'});
     $data .= pack('Cv2VX',@{$self}{qw(type block blksUsed size)});
-    $data .= $self->{created} . "\0\0";
+    $data .= $self->{created} . $self->{version};
     $data .= pack('Cv',@{$self}{qw(access auxtype)});
     $data .= $self->{modified};
     $data .= pack('v',$keyBlock);
@@ -1224,6 +1230,7 @@ sub new
         name       => $name,
         size       => length($data),
         type       => 0,
+        version    => "\0\0",
         _permitted => \%fil_fields
     };
 
@@ -1253,7 +1260,7 @@ sub open
     my ($type, $disk, $entry) = @_;
     my $self = { _permitted => \%fil_fields };
     my @fields = qw(access auxtype blksUsed created modified name size
-                    storage type);
+                    storage type version);
     @{$self}{@fields} = @{$entry}{@fields};
 
     my ($storage, $keyBlock, $blksUsed, $size) =
