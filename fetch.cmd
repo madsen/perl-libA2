@@ -1,6 +1,6 @@
 @echo off
 rem ======================================================================
-rem = $Id: fetch.cmd,v 1.3 1996/08/12 23:37:09 Madsen Exp $
+rem = $Id: fetch.cmd,v 1.4 1997/02/26 02:44:01 Madsen Exp $
 rem =
 rem = Collect files for LibA2
 rem ======================================================================
@@ -28,8 +28,21 @@ gosub getFile
 set file=pro_opt.pl
 gosub getFile
 
+set source=..\..\AppleII
+set file=var_display.pl
+gosub getFile
+
+set source=.
+set dest=%tmp
+set file=TODO.txt
+if exist TODO move /q TODO %tmp\TODO.txt
+gosub getFile
+move /q %tmp\TODO.txt TODO
+
+ren /q changes Changes
 ren /q makefile.pl Makefile.PL
 ren /q readme.pl README.PL
+ren /q todo.txt TODO.txt
 echo Building README...
 README.PL
 
