@@ -5,7 +5,7 @@ package AppleII::ProDOS;
 #
 # Author: Christopher J. Madsen <ac608@yfn.ysu.edu>
 # Created: 26 Jul 1996
-# Version: $Revision: 0.15 $ ($Date: 1996/08/03 19:36:29 $)
+# Version: $Revision: 0.16 $ ($Date: 1996/08/05 06:39:10 $)
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the same terms as Perl itself.
@@ -30,7 +30,7 @@ require Exporter;
 @EXPORT = qw();
 @EXPORT_OK = qw(
     pack_date pack_name parse_date parse_name parse_type shell_wc
-    short_date valid_name a2_croak
+    short_date valid_date valid_name a2_croak
 );
 
 #=====================================================================
@@ -39,7 +39,7 @@ require Exporter;
 BEGIN
 {
     # Convert RCS revision number to d.ddd format:
-    ' $Revision: 0.15 $ ' =~ / (\d+)\.(\d{1,3})(\.[0-9.]+)? /
+    ' $Revision: 0.16 $ ' =~ / (\d+)\.(\d{1,3})(\.[0-9.]+)? /
         or die "Invalid version number";
     $VERSION = $VERSION = sprintf("%d.%03d%s",$1,$2,$3);
 } # end BEGIN
@@ -78,6 +78,46 @@ my @filetypes = qw(
 #     The number of blocks on the disk
 #   volume:
 #     The volume name of the disk
+#---------------------------------------------------------------------
+# Constructor for creating a new disk:
+#
+# Input:
+#   volume:
+#     The volume name for the new disk
+#   diskSize:
+#     The size of the disk in blocks
+#   filename:
+#     The pathname of the image file you want to open
+#   mode: (optional)
+#     A string indicating how the image should be opened
+#     See AppleII::Disk::new for details.
+#     'rw' is always appended to the mode
+
+sub new
+{
+    my ($type, $volume, $diskSize, $filename, $mode) = @_;
+
+    a2_croak("Invalid name `$volume'") unless valid_name($volume);
+
+    my $disk = AppleII::Disk->new($filename, ($mode || '') . 'rw');
+    $disk->{maxlen} = 0x200 * $diskSize; # FIXME
+
+    my $self = {
+        bitmap =>
+            AppleII::ProDOS::Bitmap->new($disk,6,$diskSize),
+        directories => [ AppleII::ProDOS::Directory->new(
+            $volume, $disk, [2 .. 5], undef, undef, 6, $diskSize
+        ) ],
+        disk   => $disk,
+        volume => $volume,
+    };
+
+    $self->{bitmap}->write_disk;
+    $self->{directories}[0]->write_disk;
+
+    bless $self, $type;
+} # end AppleII::ProDOS::new
+
 #---------------------------------------------------------------------
 # Constructor for opening an existing disk:
 #
@@ -152,6 +192,13 @@ sub get_file
 {
     shift->{directories}[-1]->get_file(@_);
 } # end AppleII::ProDOS::get_file
+
+#---------------------------------------------------------------------
+sub new_dir
+{
+    my $self = shift;
+    $self->{directories}[-1]->new_dir($self->{bitmap}, @_);
+} # end AppleII::ProDOS::new_dir
 
 #---------------------------------------------------------------------
 # Return or change the current path:
@@ -329,6 +376,32 @@ sub short_date
 } # end AppleII::ProDOS::short_date
 
 #---------------------------------------------------------------------
+# Determine if a date is valid:
+#
+# May be called as a method or a normal subroutine.
+#
+# This is not a very strenuous check; it doesn't know that not all
+# months have 31 days.  [FIXME]
+#
+# Input:
+#   The date to check in ProDOS format (4 byte packed string)
+#
+# Returns:
+#   0 if the date is invalid
+#   1 if the date is zero (no date)
+#   2 if the date is valid
+
+sub valid_date
+{
+    return 1 if $_[-1] eq "\0\0\0\0"; # No date
+    my ($date, $minute, $hour) = unpack('vC2', $_[-1]);
+    my ($year, $month, $day) = ($date>>9, (($date>>5) & 0x0F), $date & 0x1F);
+    return 0 if $minute > 59 or $hour > 23 or $year > 99
+             or $month  > 12 or $month < 1 or $day  > 31 or $day < 1;
+    2;                          # Valid date
+} # end AppleII::ProDOS::valid_date
+
+#---------------------------------------------------------------------
 # Determine if a filename is valid:
 #
 # May be called as a method or a normal subroutine.
@@ -368,6 +441,45 @@ my %fields = (
     diskSize => undef,
     free     => undef,
 );
+
+#---------------------------------------------------------------------
+# Constructor for creating a new bitmap:
+#
+# All blocks are marked free, except for blocks 0 thru the end of the
+# bitmap, which are marked used.
+#
+# Input:
+#   disk:        The AppleII::Disk to use
+#   startBlock:  The block number where the volume bitmap begins
+#   diskSize:    The size of the disk in blocks
+
+sub new
+{
+    my ($type, $disk, $startBlock, $diskSize) = @_;
+    my $self = {
+        bitmap     => ("\xFF" x int($diskSize / 8)),
+        disk       => $disk,
+        diskSize   => $diskSize,
+        free       => $diskSize,
+        _permitted => \%fields,
+    };
+    bless $self, $type;
+    $self->mark([ $diskSize-8 .. $diskSize-1], 1); # Mark odd blocks at end
+
+    my @blocks;
+    do {
+        push @blocks, $startBlock++;
+    } while ($diskSize -= 0x1000) > 0;
+
+    $self->mark([ 0 .. @blocks[-1] ], 0); # Mark initial blocks as used
+
+    $self->{bitmap} =
+        $disk->pad_block($self->{bitmap},"\0",($#blocks+1) * 0x200);
+    $self->{blocks} = \@blocks;
+    $self->{free} = unpack('%32b*', $self->{bitmap});
+
+    $self;
+} # end AppleII::ProDOS::Bitmap::new
 
 #---------------------------------------------------------------------
 # Constructor for reading an existing bitmap:
@@ -512,9 +624,55 @@ package AppleII::ProDOS::Directory;
 #   parentNum:  Our entry number within the parent directory
 #---------------------------------------------------------------------
 
-AppleII::ProDOS->import(qw(a2_croak pack_name parse_name short_date));
+AppleII::ProDOS->import(qw(a2_croak pack_date pack_name parse_name
+                           short_date valid_name));
 use Carp;
 use strict;
+
+#---------------------------------------------------------------------
+# Constructor for creating a new directory:
+#
+# Either parent & parentNum or bitmap & diskSize must be
+# specified, but not both.
+#
+# Input:
+#   name:       The name of the new directory
+#   disk:       An AppleII::Disk
+#   blocks:     A block number or array of block numbers for the directory
+#   parent:     The block number where the parent directory begins
+#   parentNum:  The entry number in the parent directory
+#   bitmap:     The block number where the volume bitmap begins
+#   diskSize:   The size of the disk in blocks
+
+sub new
+{
+    my ($type, $name, $disk, $blocks,
+        $parent, $parentNum, $bitmap, $diskSize) = @_;
+
+    a2_croak("Invalid name `$name'") unless valid_name($name);
+
+    my $self = {
+        access  => 0xE3,
+        blocks  => $blocks,
+        disk    => $disk,
+        entries => [],
+        name    => $name,
+        version => "\0\0",
+        created => pack_date(time),
+    };
+
+    if ($parent) {
+        $self->{type}      = 0xE; # Subdirectory
+        $self->{parent}    = $parent;
+        $self->{parentNum} = $parentNum;
+    } else {
+        $self->{type}      = 0xF; # Volume directory
+        $self->{bitmap}   = $bitmap;
+        $self->{diskSize} = $diskSize;
+    } # end else volume directory
+
+    bless $self, $type;
+} # end AppleII::ProDOS::Directory::new
 
 #---------------------------------------------------------------------
 # Constructor for reading an existing directory:
@@ -662,6 +820,53 @@ sub list_matches
 sub is_dir   { $_[0]->type == 0x0F } # True if entry is directory
 sub isnt_dir { $_[0]->type != 0x0F } # True if entry is not directory
 sub true     { 1 }                   # Accept anything
+
+#---------------------------------------------------------------------
+# Create a subdirectory:
+#
+# Input:
+#   bitmap:  The AppleII::ProDOS::Bitmap to allocate space from
+#   dir:     The name of the subdirectory to create
+#   size:    The number of entries the directory should hold
+#            The default is to create a 1 block directory
+
+sub new_dir
+{
+    my ($self, $bitmap, $dir, $size) = @_;
+
+    a2_croak("Invalid name `$dir'") unless valid_name($dir);
+
+    $size = 1 unless $size;
+    $size = int(($size + 0xD) / 0xD); # Compute # of blocks (+ dir header)
+
+    my @blocks = $bitmap->get_blocks($size)
+        or a2_croak("Not enough free space");
+
+    eval {
+        my $entry = AppleII::ProDOS::DirEntry->new;
+        $entry->storage(0xD);   # Directory
+        $entry->name($dir);
+        $entry->type(0x0F);     # Directory
+        $entry->block($blocks[0]);
+        $entry->blksUsed($#blocks + 1);
+        $entry->size(0x200 * ($#blocks + 1));
+
+        $self->add_entry($entry);
+        my $subdir = AppleII::ProDOS::Directory->new(
+            $dir, $self->{disk}, \@blocks, $self->{blocks}[0], $entry->num+1
+        );
+
+        $subdir->write_disk;
+        $self->write_disk;
+        $bitmap->write_disk;
+    }; # end eval
+    if ($@) {
+        my $error = $@;         # Clean up after error
+        $self->read_disk;
+        $bitmap->read_disk;
+        die $error;
+    } # end if error while creating directory
+} # end AppleII::ProDOS::Directory::new_dir
 
 #---------------------------------------------------------------------
 # Open a subdirectory:
@@ -816,7 +1021,7 @@ package AppleII::ProDOS::DirEntry;
 #   type:     The file type
 #---------------------------------------------------------------------
 AppleII::ProDOS->import(qw(pack_date pack_name parse_name parse_type
-                           valid_name));
+                           valid_date valid_name));
 use integer;
 use strict;
 use vars '@ISA';
@@ -828,11 +1033,12 @@ my %fields = (
     auxtype     => 0xFFFF,
     block       => sub { not defined $_[0]{block}    },
     blksUsed    => sub { not defined $_[0]{blksUsed} },
-    created     => 0xFFFF,      # FIXME need better validator
-    modified    => 0xFFFF,      # FIXME need better validator
+    created     => \&valid_date,
+    modified    => \&valid_date,
     name        => \&valid_name,
-    num         => sub { not defined $_[0]{num}  },
-    size        => sub { not defined $_[0]{size} },
+    num         => sub { not defined $_[0]{num}     },
+    size        => sub { not defined $_[0]{size}    },
+    storage     => sub { not defined $_[0]{storage} },
     type        => 0xFF,
 );
 
@@ -861,6 +1067,7 @@ sub new
     } else {
         # Blank entry:
         $self->{created} = $self->{modified} = pack_date(time);
+        @{$self}{qw(access auxtype type)} = (0xE3, 0x0000, 0x00);
     }
     bless $self, $type;
 } # end AppleII::ProDOS::DirEntry::new
@@ -905,7 +1112,7 @@ package AppleII::ProDOS::File;
 #   indexBlocks:  For tree files, the list of subindex blocks
 #---------------------------------------------------------------------
 
-AppleII::ProDOS->import(qw(a2_croak));
+AppleII::ProDOS->import(qw(a2_croak valid_date valid_name));
 use Carp;
 use vars qw(@ISA);
 
@@ -915,9 +1122,9 @@ my %fields = (
     access      => 0xFF,
     auxtype     => 0xFFFF,
     blksUsed    => undef,
-    created     => 0xFFFF,      # FIXME need better validator
+    created     => \&valid_date,
     data        => undef,
-    modified    => 0xFFFF,      # FIXME need better validator
+    modified    => \&valid_date,
     name        => \&valid_name,
     size        => undef,
     type        => 0xFF,
