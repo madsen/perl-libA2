@@ -5,7 +5,7 @@ package AppleII::ProDOS;
 #
 # Author: Christopher J. Madsen <ac608@yfn.ysu.edu>
 # Created: 26 Jul 1996
-# Version: $Revision: 0.7 $ ($Date: 1996/07/31 17:06:55 $)
+# Version: $Revision: 0.8 $ ($Date: 1996/07/31 18:36:14 $)
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the same terms as Perl itself.
@@ -28,7 +28,9 @@ use vars qw(@ISA @EXPORT @EXPORT_OK $VERSION);
 require Exporter;
 @ISA = qw(Exporter);
 @EXPORT = qw();
-@EXPORT_OK = qw(packDate packName parseDate parseName parseType shortDate);
+@EXPORT_OK = qw(
+    packDate packName parseDate parseName parseType shortDate validName
+);
 
 #=====================================================================
 # Package Global Variables:
@@ -36,7 +38,7 @@ require Exporter;
 BEGIN
 {
     # Convert RCS revision number to d.ddd format:
-    ' $Revision: 0.7 $ ' =~ / (\d+)\.(\d{1,3})(\.[0-9.]+)? /
+    ' $Revision: 0.8 $ ' =~ / (\d+)\.(\d{1,3})(\.[0-9.]+)? /
         or die "Invalid version number";
     $VERSION = $VERSION = sprintf("%d.%03d%s",$1,$2,$3);
 } # end BEGIN
@@ -253,6 +255,22 @@ sub shortDate
     my ($year, $month, $day) = ($date>>9, (($date>>5) & 0x0F), $date & 0x1F);
     sprintf('%2d-%s-%02d %2d:%02d',$day,$months[$month-1],$year,$hour,$minute);
 } # end AppleII::ProDOS::shortDate
+
+#---------------------------------------------------------------------
+# Determine if a filename is valid:
+#
+# May be called as a method or a normal subroutine.
+#
+# Input:
+#   The file to check
+#
+# Returns:
+#   True if the filename is valid
+
+sub validName
+{
+    $_[-1] =~ /\A[a-z][a-z0-9.]{0,14}\Z(?!\n)/i;
+} # end AppleII::ProDOS::validName
 
 #=====================================================================
 package AppleII::ProDOS::Bitmap;
@@ -607,7 +625,7 @@ package AppleII::ProDOS::DirEntry;
 #   storage:  The storage type
 #   type:     The file type
 #---------------------------------------------------------------------
-AppleII::ProDOS->import(qw(packDate packName parseName parseType));
+AppleII::ProDOS->import(qw(packDate packName parseName parseType validName));
 use integer;
 use strict;
 use vars '@ISA';
@@ -615,16 +633,16 @@ use vars '@ISA';
 @ISA = 'AppleII::ProDOS::Members';
 
 my %fields = (
-    access      => undef,
-    auxtype     => undef,
-    block       => undef,
-    blocks      => undef,
-    created     => undef,
-    modified    => undef,
-    name        => undef,
-    num         => undef,
-    size        => undef,
-    type        => undef,
+    access      => 0xFF,
+    auxtype     => 0xFFFF,
+    block       => sub { not defined $_[0]{block} },
+    blocks      => sub { not defined $_[0]{blocks} },
+    created     => 0xFFFF,      # FIXME need better validator
+    modified    => 0xFFFF,      # FIXME need better validator
+    name        => \&validName,
+    num         => sub { not defined $_[0]{num}  },
+    size        => sub { not defined $_[0]{size} },
+    type        => 0xFF,
 );
 
 #---------------------------------------------------------------------
@@ -640,8 +658,8 @@ sub new
     my $self = {};
 
     $self->{'_permitted'} = \%fields;
-    $self->{num} = $number;
     if ($entry) {
+        $self->{num} = $number;
         @{$self}{'storage', 'name'} = parseName($entry);
         @{$self}{qw(type block blocks size)} = unpack('x16Cv2V',$entry);
         $self->{size} &= 0xFFFFFF;  # Size is only 3 bytes long
@@ -758,6 +776,12 @@ package AppleII::ProDOS::Members;
 #
 # Only those member variables whose names are listed in the _permitted
 # hash may be accessed.
+#
+# The value in the _permitted hash is used for validating the new
+# value of a field.  The possible values are:
+#   undef     No changes allowed (read-only)
+#   CODE ref  Call CODE with our @_.  It returns true if OK.
+#   scalar    New value must be an integer between 0 and _permitted
 #---------------------------------------------------------------------
 
 use Carp;
@@ -765,12 +789,25 @@ no strict;
 
 sub AUTOLOAD
 {
-    my $self = shift;
-    my $type = ref($self) || croak "$self is not an object";
+    my $self = $_[0];
+    my $type = ref($self) or croak("$self is not an object");
     my $name = $AUTOLOAD;
     $name =~ s/.*://;   # strip fully-qualified portion
-    unless (exists $self->{_permitted}->{$name}) {
-        croak "Can't access `$name' field in object of class $type";
+    unless (exists $self->{_permitted}{$name}) {
+        croak("Can't access `$name' field in object of class $type");
+    }
+    if ($#_) {
+        my $check = $self->{_permitted}{$name};
+        my $ok;
+        if (ref($check) eq 'CODE') {
+            $ok = &$check;      # Pass our @_ to validator
+        } elsif ($check) {
+            $ok = ($_[1] =~ /^[0-9]+$/ and $_[1] >= 0 and $_[1] <= $check);
+        } else {
+            croak("Field `$name' of class $type is read-only");
+        }
+        return $self->{$name} = $_[1] if $ok;
+        croak("Invalid value `$_[1]' for field `$name' of class $type");
     }
     return $self->{$name};
 } # end AppleII::ProDOS::Members::AUTOLOAD
