@@ -1,6 +1,6 @@
 #!perl
 #---------------------------------------------------------------------
-# $Id: README.PL,v 1.5 1997/02/25 05:51:01 Madsen Exp $
+# $Id: README.PL,v 1.6 1997/02/25 06:18:01 Madsen Exp $
 # Copyright 1996 Christopher J. Madsen
 #
 # Create the README file for LibA2
@@ -20,10 +20,12 @@ LibA2 provides both end-user utilities and library modules for
 accessing files on Apple II ProDOS disk images for use with most Apple
 II emulators.
 
-This is an ALPHA release of LibA2.  This means that documentation is
-minimal (i.e, nonexistent (Use the source, Luke!)), bugs are likely,
-and the interfaces are liable to change.  Use at your own risk.  Keep
-a recent backup handy.  Wait sixty minutes before swimming.
+This is a BETA release of LibA2.  There's some documentation, but it's
+not complete.  If you want to see the rest of the documentation, then
+send email!  Otherwise, I'll probably never get around to writing it.
+Until then, use the source, Luke!  There are still probably some bugs,
+and the interfaces might still change.  Use at your own risk.  Keep a
+recent backup handy.  Wait sixty minutes before swimming.
 
 All this having been said, I'm not aware of any serious bugs in LibA2
 (besides the ones listed in the BUGS section below).  Good luck!
