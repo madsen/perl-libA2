@@ -1,12 +1,12 @@
 #!perl
 #---------------------------------------------------------------------
-# $Id: README.PL,v 1.3 1996/08/13 04:27:16 Madsen Exp $
+# $Id: README.PL,v 1.4 1996/08/13 04:36:30 Madsen Exp $
 # Copyright 1996 Christopher J. Madsen
 #
 # Create the README file for LibA2
 #---------------------------------------------------------------------
 
-my $version = '0.001'; # Update Makefile.PL too!
+my $version = '0.002'; # Update Makefile.PL too!
 
 open(STDOUT,'>README') or die;
 
