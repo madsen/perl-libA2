@@ -5,7 +5,7 @@ package AppleII::ProDOS;
 #
 # Author: Christopher J. Madsen <ac608@yfn.ysu.edu>
 # Created: 26 Jul 1996
-# Version: $Revision: 0.1 $ ($Date: 1996/07/28 18:01:41 $)
+# Version: $Revision: 0.2 $ ($Date: 1996/07/28 20:54:48 $)
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the same terms as Perl itself.
@@ -19,6 +19,7 @@ package AppleII::ProDOS;
 #---------------------------------------------------------------------
 
 require 5.000;
+use AppleII::Disk 0.004;
 use Carp;
 use strict;
 use vars qw(@ISA @EXPORT @EXPORT_OK $VERSION);
@@ -34,10 +35,57 @@ require Exporter;
 BEGIN
 {
     # Convert RCS revision number to d.ddd format:
-    ' $Revision: 0.1 $ ' =~ / (\d+)\.(\d{1,3})(\.[0-9.]+)? /
+    ' $Revision: 0.2 $ ' =~ / (\d+)\.(\d{1,3})(\.[0-9.]+)? /
         or die "Invalid version number";
     $VERSION = $VERSION = sprintf("%d.%03d%s",$1,$2,$3);
 } # end BEGIN
+
+#=====================================================================
+# package AppleII::ProDOS:
+#
+# Member Variables:
+#   bitmap:    An AppleII::ProDOS::Bitmap containing the volume bitmap
+#   disk:      An AppleII::Disk
+#   diskSize:  The number of blocks on the disk
+#   volume:    The volume name of the disk
+#---------------------------------------------------------------------
+# Constructor:
+#
+# There are two forms:
+#   new(disk); or
+#   new(filename, mode);
+#
+# Input:
+#   disk:
+#     The AppleII::Disk to use
+#   filename:
+#     The pathname of the image file you want to open
+#   mode:
+#     A string indicating how the image should be opened
+#     May contain any of the following characters (case sensitive):
+#       r  Allow reads (this is actually ignored; you can always read)
+#       w  Allow writes
+
+sub new
+{
+    my ($type, $disk, $mode) = @_;
+    my $self = {};
+    $disk = AppleII::Disk::DOS33->new($disk, $mode) unless ref $disk;
+    $self->{disk} = $disk;
+
+    my $volDir = $disk->readBlock(2);
+
+    my ($nameLen) = ord substr($volDir,0x04,1);
+    die "This is not a ProDOS disk" unless ($nameLen & 0xF0) == 0xF0;
+    $self->{volume} = substr($volDir,0x05,$nameLen & 0x0F);
+
+    my ($startBlock, $blocks) = unpack('v2',substr($volDir,0x27,4));
+
+    $self->{bitmap} = AppleII::ProDOS::Bitmap->new($disk,$startBlock,$blocks);
+    $self->{diskSize} = $blocks;
+
+    bless $self, $type;
+} # end AppleII::ProDOS::new
 
 #=====================================================================
 package AppleII::ProDOS::Bitmap;
@@ -59,15 +107,21 @@ my @adjust = (7, 5, 3, 1, -1, -3, -5, -7);
 # Constructor:
 #
 # Input:
-#   disk:  The AppleII::Disk to use
+#   disk:        The AppleII::Disk to use
+#   startBlock:  The block number where the volume bitmap begins
+#   blocks:      The size of the disk in blocks
+#     STARTBLOCK & BLOCKS are optional.  If they are omitted, we get
+#     the information from the volume directory.
 
 sub new
 {
-    my ($type, $disk) = @_;
+    my ($type, $disk, $startBlock, $blocks) = @_;
     my $self = {};
     $self->{disk} = $disk;
-    my $volDir = $disk->readBlock(2);
-    my ($startBlock, $blocks) = unpack('v2',substr($volDir,0x27,4));
+    unless ($startBlock and $blocks) {
+        my $volDir = $disk->readBlock(2);
+        ($startBlock, $blocks) = unpack('v2',substr($volDir,0x27,4));
+    }
     $self->{diskSize} = $blocks;
     do {
         push @{$self->{blocks}}, $startBlock++;
