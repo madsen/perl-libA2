@@ -1,6 +1,6 @@
 #!perl
 #---------------------------------------------------------------------
-# $Id: prodos.pl,v 0.9 1997/02/25 06:02:23 Madsen Exp $
+# $Id: prodos.pl,v 0.10 1997/02/26 02:35:36 Madsen Exp $
 # Copyright 1996 Christopher J. Madsen
 #
 # This program is free software; you can redistribute it and/or modify
@@ -192,6 +192,10 @@ Exit B<prodos>.
 
 Display the contents of I<FILE>, which should be a text file.
 
+=item B<!>
+
+Start a subshell.
+
 =back
 
 =head1 REQUIREMENTS
@@ -200,6 +204,11 @@ B<prodos> requires Term::ReadLine, available on CPAN.
 
 It also requires the modules AppleII::ProDOS and AppleII::Disk,
 which are included with LibA2.
+
+=head1 ENVIRONMENT
+
+ PAGER	The pager to use for long displays
+ SHELL	The shell to start with the ! command
 
 =head1 BUGS
 
