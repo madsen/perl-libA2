@@ -5,7 +5,7 @@ package AppleII::ProDOS;
 #
 # Author: Christopher J. Madsen <ac608@yfn.ysu.edu>
 # Created: 26 Jul 1996
-# Version: $Revision: 0.2 $ ($Date: 1996/07/28 20:54:48 $)
+# Version: $Revision: 0.3 $ ($Date: 1996/07/29 01:44:52 $)
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the same terms as Perl itself.
@@ -35,7 +35,7 @@ require Exporter;
 BEGIN
 {
     # Convert RCS revision number to d.ddd format:
-    ' $Revision: 0.2 $ ' =~ / (\d+)\.(\d{1,3})(\.[0-9.]+)? /
+    ' $Revision: 0.3 $ ' =~ / (\d+)\.(\d{1,3})(\.[0-9.]+)? /
         or die "Invalid version number";
     $VERSION = $VERSION = sprintf("%d.%03d%s",$1,$2,$3);
 } # end BEGIN
@@ -75,9 +75,9 @@ sub new
 
     my $volDir = $disk->readBlock(2);
 
-    my ($nameLen) = ord substr($volDir,0x04,1);
-    die "This is not a ProDOS disk" unless ($nameLen & 0xF0) == 0xF0;
-    $self->{volume} = substr($volDir,0x05,$nameLen & 0x0F);
+    my $storageType;
+    ($storageType, $self->{volume}) = parseName(substr($volDir,0x04,16));
+    die "This is not a ProDOS disk" unless $storageType == 0xF;
 
     my ($startBlock, $blocks) = unpack('v2',substr($volDir,0x27,4));
 
@@ -86,6 +86,23 @@ sub new
 
     bless $self, $type;
 } # end AppleII::ProDOS::new
+
+#---------------------------------------------------------------------
+# Extract a filename:
+#
+# This is NOT a method; it's just a regular subroutine.
+#
+# Input:
+#   nameField:  The type/length byte followed by the name
+#
+# Returns:
+#   (type, name)
+
+sub parseName
+{
+    my $typeLen = ord $_[0];
+    ($typeLen >> 4, substr($_[0],1,$typeLen & 0x0F));
+} # end AppleII::ProDOS::parseName
 
 #=====================================================================
 package AppleII::ProDOS::Bitmap;
@@ -186,6 +203,136 @@ sub writeDisk
 } # end AppleII::ProDOS::Bitmap::writeDisk
 
 #=====================================================================
+package AppleII::ProDOS::Directory;
+#
+# Member Variables:
+#   access:
+#     The access attributes for this directory
+#   blocks:
+#     The list of blocks used by this directory
+#   disk:
+#     An AppleII::Disk
+#   entries:
+#     The list of directory entries
+#   name:
+#     The directory name
+#   created:
+#     The date/time the directory was created
+#   version:
+#     The contents of the VERSION & MIN_VERSION (2 byte string)
+#   parent:
+#     The AppleII::ProDOS::Directory containing this directory
+#   parentNum:
+#     Our entry number within the parent directory
+#---------------------------------------------------------------------
+
+use strict;
+
+#---------------------------------------------------------------------
+# Constructor:
+#
+# Input:
+#   disk:   An AppleII::Disk
+#   block:  The block number to use
+#   parent:  The parent directory
+#   parentNum:  The entry number in the parent directory
+
+sub new
+{
+    my ($type, $disk, $block, $parent, $parentNum) = @_;
+    my $self = {};
+    $self->{disk} = $disk;
+
+    if ($parent) {
+        $self->{parent}    = $parent;
+        $self->{parentNum} = $parentNum;
+    }
+
+    bless $self, $type;
+    $self->readDisk($block);
+    $self;
+} # end AppleII::ProDOS::Directory::new
+
+#---------------------------------------------------------------------
+# Read directory from disk:
+
+sub readDisk
+{
+    my ($self, $block) = @_;
+    $block = $self->{blocks}[0] unless $block;
+
+    my (@blocks,@entries);
+    my $disk = $self->{disk};
+    my $entry = 0;
+    while ($block) {
+        push @blocks, $block;
+        my $data = $disk->readBlock($block);
+        $block = unpack('v',substr($data,0x02,2)); # Pointer to next block
+        substr($data,0x02,4) = '';                 # Remove block pointers
+        while ($data) {
+            my ($type, $name) = AppleII::ProDOS::parseName($data);
+            if ($type & 0xE == 0xE) {
+                # Directory header
+                $self->{name} = $name;
+                $self->{created} = substr($data, 0x1C-4,4);
+                $self->{version} = substr($data, 0x20-4,2);
+                $self->{access}  = ord substr($data, 0x22-4,1);
+            } elsif ($type) {
+                # File entry
+                push @entries, AppleII::ProDOS::DirEntry->new($entry, $data);
+            }
+            substr($data,0,0x27) = ''; # Remove record
+            ++$entry;
+        } # end while more records
+    } # end if rebuilding block list
+
+    $self->{blocks}  = \@blocks;
+    $self->{entries} = \@entries;
+} # end AppleII::ProDOS::Directory::readDisk
+
+#=====================================================================
+package AppleII::ProDOS::DirEntry;
+#
+# Member Variables:
+#   storage:  The storage type
+#   name:     The filename
+#   type:     The file type
+#   block:    The key block for this file
+#   blocks:   The number of blocks used by this file
+#   size:     The file size in bytes
+#   created:  The creation date/time
+#   access:   The access attributes
+#   auxtype:  The auxiliary type
+#   modified: The date/time of last modification
+#   num:      The entry number of this entry
+#---------------------------------------------------------------------
+use integer;
+use strict;
+
+#---------------------------------------------------------------------
+# Constructor:
+#
+# Input:
+#   number:  The entry number
+#   entry:   The directory entry
+
+sub new
+{
+    my ($type, $number, $entry) = @_;
+    my $self = {};
+
+    @{$self}{'storage', 'name'} = AppleII::ProDOS::parseName($entry);
+    @{$self}{qw(type block blocks size)} = unpack('x16Cv2V',$entry);
+    $self->{size} &= 0xFFFFFF;  # Size is only 3 bytes long
+    @{$self}{qw(access auxtype)} = unpack('x30Cv2VX',$entry);
+
+    $self->{created}  = substr($entry,0x18,4);
+    $self->{modified} = substr($entry,0x21,4);
+
+    bless $self, $type;
+} # end AppleII::ProDOS::DirEntry::new
+
+#=====================================================================
 package AppleII::ProDOS::Index;
 #
 # Member Variables:
@@ -232,7 +379,7 @@ sub readDisk
     }
 
     $self->{blocks} = \@blocks;
-} # end AppleII::ProDOS::Bitmap::readDisk
+} # end AppleII::ProDOS::Index::readDisk
 
 #---------------------------------------------------------------------
 # Write bitmap to disk:
@@ -250,7 +397,7 @@ sub writeDisk
     $disk->writeBlock($self->{block},
                       $disk->padBlock($dataLo,"\0",0x100) . $dataHi,
                       "\0");
-} # end AppleII::ProDOS::Bitmap::writeDisk
+} # end AppleII::ProDOS::Index::writeDisk
 
 #=====================================================================
 # Package Return Value:
