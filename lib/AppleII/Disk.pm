@@ -5,21 +5,15 @@ package AppleII::Disk;
 #
 # Author: Christopher J. Madsen <ac608@yfn.ysu.edu>
 # Created: 25 Jul 1996
-# Version: $Revision: 0.2 $ ($Date: 1996/07/26 16:24:00 $)
+# Version: $Revision: 0.3 $ ($Date: 1996/07/27 03:47:37 $)
 #
 # This program is free software; you can redistribute it and/or modify
-# it under the terms of the GNU General Public License as published by
-# the Free Software Foundation; either version 2, or (at your option)
-# any later version.
+# it under the same terms as Perl itself.
 #
 # This program is distributed in the hope that it will be useful,
 # but WITHOUT ANY WARRANTY; without even the implied warranty of
-# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-# GNU General Public License for more details.
-#
-# You should have received a copy of the GNU General Public License
-# along with Perl; see the file COPYING.  If not, write to the
-# Free Software Foundation, 675 Mass Ave, Cambridge, MA 02139, USA.
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See either the
+# GNU General Public License or the Artistic License for more details.
 #
 # Read/Write Apple II disk images
 #---------------------------------------------------------------------
@@ -39,7 +33,7 @@ require Exporter;
 BEGIN
 {
     # Convert RCS revision number to d.ddd format:
-    ' $Revision: 0.2 $ ' =~ / (\d+)\.(\d{1,3})(\.[0-9.]+)? /
+    ' $Revision: 0.3 $ ' =~ / (\d+)\.(\d{1,3})(\.[0-9.]+)? /
         or die "Invalid version number";
     $VERSION = $VERSION = sprintf("%d.%03d%s",$1,$2,$3);
 } # end BEGIN
@@ -92,6 +86,38 @@ sub new
 } # end AppleII::Disk::new
 
 #---------------------------------------------------------------------
+# Pad a block of data:
+#
+# Input:
+#   data:    The block to be padded
+#   pad:     The character to pad with (default "\0") or '' for no padding
+#   length:  The length to pad to (default 0x200)
+#
+# Returns:
+#   The BLOCK padded to LENGTH with PAD
+#     Dies if the block is too long.
+#     If PAD is the null string, dies if BLOCK is not already LENGTH.
+
+sub padBlock
+{
+    my ($self, $data, $pad, $length) = @_;
+
+    $pad    = "\0" unless defined $pad;
+    $length = $length || 0x200;
+
+    $data .= $pad x ($length - length($data))
+        if (defined $pad and length($data) < $length);
+
+    unless (length($data) == $length) {
+        local $Carp::CarpLevel = $Carp::CarpLevel;
+        ++$Carp::CarpLevel if (caller)[0] =~ /^AppleII::Disk::/;
+        croak(sprintf("Data block is %d bytes",length($data)));
+    }
+
+    $data;
+} # end AppleII::Disk::padBlock
+
+#---------------------------------------------------------------------
 # Read a ProDOS block:
 #
 # Input:
@@ -121,7 +147,7 @@ sub new
 #   block:  The block number to read
 #   data:   The contents of the block
 #   pad:    A character to pad the block with (optional)
-#     If pad is omitted, an error is generated if data is not 512 bytes
+#     If PAD is omitted, an error is generated if data is not 512 bytes
 #
 # Implemented in AppleII::Disk::ProDOS & AppleII::Disk::DOS33
 
@@ -133,7 +159,7 @@ sub new
 #   sector:  The sector number to read
 #   data:   The contents of the sector
 #   pad:    The value to pad the sector with (optional)
-#     If pad is omitted, an error is generated if data is not 256 bytes
+#     If PAD is omitted, an error is generated if data is not 256 bytes
 #
 # Implemented in AppleII::Disk::ProDOS & AppleII::Disk::DOS33
 
@@ -201,11 +227,7 @@ sub writeBlock
     my ($self, $block, $data, $pad) = @_;
     croak("Disk image is read/only") unless $self->{writable};
 
-    $data .= $pad x (0x200 - length($data))
-        if (defined $pad and length($data) < 0x200);
-
-    croak(sprintf("Data block is %d bytes",length($data)))
-        unless length($data) == 0x200;
+    $data = $self->padBlock($data, $pad || '');
 
     $self->seekBlock($block);
     print {$self->{file}} $data or die;
@@ -302,11 +324,7 @@ sub writeSector
     my ($self, $track, $sector, $data, $pad) = @_;
     croak("Disk image is read/only") unless $self->{writable};
 
-    $data .= $pad x (0x100 - length($data))
-        if (defined $pad and length($data) < 0x100);
-
-    croak(sprintf("Data block is %d bytes",length($data)))
-        unless length($data) == 0x100;
+    $data = $self->padBlock($data, $pad || '', 0x100);
 
     $self->seekSector($track, $sector);
     print {$self->{file}} $data or die;
@@ -324,11 +342,7 @@ sub writeBlock
     croak("Disk image is read/only") unless $self->{writable};
     my ($track, $sector1, $sector2) = block2sector($block);
 
-    $data .= $pad x (0x200 - length($data))
-        if (defined $pad and length($data) < 0x200);
-
-    croak(sprintf("Data block is %d bytes",length($data)))
-        unless length($data) == 0x200;
+    $data = $self->padBlock($data, $pad || '');
 
     $self->writeSector($track, $sector1, substr($data,0,0x100));
     $self->writeSector($track, $sector2, substr($data,0x100,0x100));
@@ -338,3 +352,9 @@ sub writeBlock
 # Package Return Value:
 
 1;
+
+__END__
+
+# Local Variables:
+# tmtrack-file-task: "AppleII::Disk.pm"
+# End:
