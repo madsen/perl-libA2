@@ -1,6 +1,6 @@
 #!perl
 #---------------------------------------------------------------------
-# $Id: prodos.pl,v 0.1 1996/07/31 03:19:10 Madsen Exp $
+# $Id: prodos.pl,v 0.2 1996/07/31 19:57:29 Madsen Exp $
 # Copyright 1996 Christopher J. Madsen
 #
 # A command-line shell for accessing ProDOS disk images
@@ -16,18 +16,22 @@ print $vol->directory,"\n";
 
 while (1) {
     $_ = $term->readline(']');
-    $term->addhistory($_) if /\S/;
+    next unless /\S/;
+    $term->addhistory($_);
 
-    my ($cmd, @args) = split(' ');
+    my ($cmd, $arg) = /^\s*(\S+)\s*(.+)?/;
     $cmd = lc $cmd;
     last if $cmd =~ /^q(?:uit)?$/;
     eval {
-        print $vol->directory,"\n"        if $cmd eq 'pwd';
-        print $vol->directory(@args),"\n" if $cmd eq 'cd';
-        print $vol->catalog,"\n"          if $cmd eq 'cat';
+      CMD: {
+        print($vol->directory,"\n"),      next CMD if $cmd eq 'pwd';
+        print($vol->directory($arg),"\n"),next CMD if $cmd eq 'cd';
+        print($vol->catalog,"\n"),        next CMD if $cmd eq 'cat';
+        print "Bad command `$cmd'\a\n";
+      } # end CMD
     };
     if ($@) {
-        $@ =~ /^(.+) at \S+ line \d+$/ or die $@;
+        $@ =~ /^(.+) at \Q$0\E line \d+$/ or die $@;
         print $1,"\a\n";
     }
 } # end forever
