@@ -5,7 +5,7 @@ package AppleII::ProDOS;
 #
 # Author: Christopher J. Madsen <ac608@yfn.ysu.edu>
 # Created: 26 Jul 1996
-# Version: $Revision: 0.21 $ ($Date: 1996/08/14 18:41:15 $)
+# Version: $Revision: 0.22 $ ($Date: 1996/08/18 23:35:26 $)
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the same terms as Perl itself.
@@ -42,6 +42,7 @@ my %vol_fields = (
 
 # Methods to be passed along to the current directory:
 my %dir_methods = (
+    catalog  => undef,
     get_file => undef,
     new_dir  => undef,
     put_file => undef,
@@ -53,7 +54,7 @@ my %dir_methods = (
 BEGIN
 {
     # Convert RCS revision number to d.ddd format:
-    ' $Revision: 0.21 $ ' =~ / (\d+)\.(\d{1,3})(\.[0-9.]+)? /
+    ' $Revision: 0.22 $ ' =~ / (\d+)\.(\d{1,3})(\.[0-9.]+)? /
         or die "Invalid version number";
     $VERSION = $VERSION = sprintf("%d.%03d%s",$1,$2,$3);
 } # end BEGIN
@@ -182,22 +183,6 @@ sub open
 
     bless $self, $type;
 } # end AppleII::ProDOS::open
-
-#---------------------------------------------------------------------
-# Return the disk catalog and free space information:
-#
-# Returns:
-#   A string containing a catalog listing with free space information
-
-sub catalog
-{
-    my ($self, @rest) = @_;
-    my $bitmap = $self->{bitmap};
-    my ($free, $total, $used) = ($bitmap->free, $bitmap->diskSize);
-    $used = $total - $free;
-    $self->{directories}[-1]->catalog(@rest) .
-        "Blocks free: $free     Blocks used: $used     Total blocks: $total\n";
-} # end AppleII::ProDOS::catalog
 
 #---------------------------------------------------------------------
 # Return the current directory:
@@ -648,6 +633,12 @@ package AppleII::ProDOS::Directory;
 # For subdirectories:
 #   parent:     The block number in the parent directory where our entry is
 #   parentNum:  Our entry number within that block of the parent directory
+#   fixParent:  True means our parent entry needs to be updated
+#
+# We also use the os_openDirs field of the disk to keep track of open
+# directories.  It contains a hash of Directory objects indexed by key
+# block.  The constructors automatically add the new objects to the
+# hash, and the destructor removes them.
 #---------------------------------------------------------------------
 
 AppleII::ProDOS->import(qw(a2_croak pack_date pack_name parse_name
@@ -706,6 +697,8 @@ sub new
     } # end else volume directory
 
     bless $self, $type;
+    $disk->{os_openDirs}{$blocks->[0]} = $self;
+    $self;
 } # end AppleII::ProDOS::Directory::new
 
 #---------------------------------------------------------------------
@@ -726,9 +719,21 @@ sub open
     };
 
     bless $self, $type;
+    $disk->{os_openDirs}{$block} = $self;
     $self->read_disk($block);
     $self;
 } # end AppleII::ProDOS::Directory::open
+
+#---------------------------------------------------------------------
+# Destructor:
+#
+# Removes the directory from the hash of open directories.
+
+sub DESTROY
+{
+    my $self = shift;
+    delete $self->{disk}{os_openDirs}{$self->{blocks}[0]};
+} # end AppleII::ProDOS::Directory::DESTROY
 
 #---------------------------------------------------------------------
 # Add entry:
@@ -747,21 +752,25 @@ sub add_entry
 
     my $entries = $self->{entries};
 
-    my $lastEntry = 0xD * (1 + $#{$self->{blocks}});
-
     my $i;
     for ($i=0; $i <= $#$entries; ++$i) {
         last if $entries->[$i]{num} > $i+1;
     }
 
-    a2_croak('Directory full') if ($i > $lastEntry); # FIXME expand dir
+    if ($i+1 >= 0xD * scalar @{$self->{blocks}}) {
+        a2_croak('Volume full') unless $self->{type} == 0xE; # Subdirectory
+        my @blocks = $self->{bitmap}->get_blocks(1);
+        a2_croak('Volume full') unless @blocks;
+        push @{$self->{blocks}}, @blocks;
+        $self->{fixParent} = 1;
+    } # end if directory full
 
     $entry->{num} = $i+1;
     splice @$entries, $i, 0, $entry;
 } # end AppleII::ProDOS::Directory::add_entry
 
 #---------------------------------------------------------------------
-# Return the catalog:
+# Return the directory listing and free space information:
 #
 # Returns:
 #   A string containing the catalog in ProDOS format
@@ -779,8 +788,14 @@ sub catalog
                            short_date($entry->modified),
                            short_date($entry->created),
                            $entry->size, $entry->auxtype);
-    }
-    $result;
+    } # end foreach entry
+
+    my $bitmap = $self->{bitmap};
+    my ($free, $total, $used) = ($bitmap->free, $bitmap->diskSize);
+    $used = $total - $free;
+
+    $result .
+        "Blocks free: $free     Blocks used: $used     Total blocks: $total\n";
 } # end AppleII::ProDOS::Directory::catalog
 
 #---------------------------------------------------------------------
@@ -1009,9 +1024,22 @@ sub write_disk
     my @blocks  = @{$self->{blocks}};
     my @entries = @{$self->{'entries'}};
     my $keyBlock = $blocks[0];
+
+    if ($self->{fixParent}) {
+        delete $self->{fixParent};
+        my $data = $disk->read_block($self->{parent});
+        my $entry = 4 + 0x27*($self->{parentNum}-1);
+        substr($data, $entry + 0x11, 7) =
+            pack('v2VX', $keyBlock, scalar(@blocks), 0x200 * scalar(@blocks));
+        # FIXME update modified date?
+        $disk->write_block($self->{parent}, $data);
+        my $parentBlock = unpack('v', substr($data,$entry + 0x25, 2));
+        $disk->{os_openDirs}{$parentBlock}->read_disk
+            if $disk->{os_openDirs}{$parentBlock};
+    } # end if parent entry needs updating
+
     push    @blocks, 0;         # Add marker at beginning and end
     unshift @blocks, 0;
-
     my ($i, $entry);
     for ($i=1, $entry=0; $i < $#blocks; $i++) {
         my $data = pack('v2',$blocks[$i-1],$blocks[$i+1]); # Block pointers
@@ -1529,5 +1557,5 @@ Christopher J. Madsen E<lt>F<ac608@yfn.ysu.edu>E<gt>
 =cut
 
 # Local Variables:
-# tmtrack-file-task: "AppleII::ProDOS.pm"
+# tmtrack-file-task: "LibA2: AppleII::ProDOS.pm"
 # End:
