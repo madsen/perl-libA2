@@ -5,7 +5,7 @@ package AppleII::ProDOS;
 #
 # Author: Christopher J. Madsen <ac608@yfn.ysu.edu>
 # Created: 26 Jul 1996
-# Version: $Revision: 0.6 $ ($Date: 1996/07/31 03:16:25 $)
+# Version: $Revision: 0.7 $ ($Date: 1996/07/31 17:06:55 $)
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the same terms as Perl itself.
@@ -36,7 +36,7 @@ require Exporter;
 BEGIN
 {
     # Convert RCS revision number to d.ddd format:
-    ' $Revision: 0.6 $ ' =~ / (\d+)\.(\d{1,3})(\.[0-9.]+)? /
+    ' $Revision: 0.7 $ ' =~ / (\d+)\.(\d{1,3})(\.[0-9.]+)? /
         or die "Invalid version number";
     $VERSION = $VERSION = sprintf("%d.%03d%s",$1,$2,$3);
 } # end BEGIN
@@ -137,7 +137,7 @@ sub directory
             my $entry = @directories[-1]->findEntry($dir)
                 or croak("No such directory `$_[1]'");
             push @directories, AppleII::ProDOS::Directory->new(
-                $self->{disk},$entry->{block},$directories[-1],$entry->{num}
+                $self->{disk},$entry->block,$directories[-1],$entry->num
             );
         }
         $self->{directories} = \@directories;
@@ -465,21 +465,23 @@ sub addEntry
 
 #---------------------------------------------------------------------
 # Return the catalog:
+#
+# Returns:
+#   A string containing the catalog in ProDOS format
 
 sub catalog
 {
     my $self = shift;
     my $result =
-        sprintf("%-15s%s %s%8s  %-14s  %-14s %s\n",
-                qw(Filename Type Blocks Size Created Modified Auxtype));
+        sprintf("%-15s%s %s  %-14s  %-14s %8s %s\n",
+                qw(Name Type Blocks Modified Created Size Subtype));
     my $entry;
     foreach $entry (@{$self->{entries}}) {
-        $result .= sprintf("%-15s %-3s %5d %8d %s %s  \$%04X\n",
-                           $entry->{name}, $entry->shortType,
-                           @{$entry}{qw(blocks size)},
-                           shortDate($entry->{created}),
-                           shortDate($entry->{modified}),
-                           $entry->{auxtype});
+        $result .= sprintf("%-15s %-3s %5d  %s %s %8d  \$%04X\n",
+                           $entry->name, $entry->shortType, $entry->blocks,
+                           shortDate($entry->modified),
+                           shortDate($entry->created),
+                           $entry->size, $entry->auxtype);
     }
     $result;
 } # end AppleII::ProDOS::Directory::catalog
@@ -489,12 +491,15 @@ sub catalog
 #
 # Input:
 #   filename:  The filename to match
+#
+# Returns:
+#   The entry representing that filename
 
 sub findEntry
 {
     my ($self, $filename) = @_;
     $filename = uc $filename;
-    (grep {uc($_->{name}) eq $filename} @{$self->{entries}})[0];
+    (grep {uc($_->name) eq $filename} @{$self->{entries}})[0];
 } # end AppleII::ProDOS::Directory::findEntry
 
 #---------------------------------------------------------------------
@@ -590,21 +595,37 @@ sub writeDisk
 package AppleII::ProDOS::DirEntry;
 #
 # Member Variables:
-#   storage:  The storage type
-#   name:     The filename
-#   type:     The file type
-#   block:    The key block for this file
-#   blocks:   The number of blocks used by this file
-#   size:     The file size in bytes
-#   created:  The creation date/time
 #   access:   The access attributes
 #   auxtype:  The auxiliary type
+#   block:    The key block for this file
+#   blocks:   The number of blocks used by this file
+#   created:  The creation date/time
 #   modified: The date/time of last modification
+#   name:     The filename
 #   num:      The entry number of this entry
+#   size:     The file size in bytes
+#   storage:  The storage type
+#   type:     The file type
 #---------------------------------------------------------------------
 AppleII::ProDOS->import(qw(packDate packName parseName parseType));
 use integer;
 use strict;
+use vars '@ISA';
+
+@ISA = 'AppleII::ProDOS::Members';
+
+my %fields = (
+    access      => undef,
+    auxtype     => undef,
+    block       => undef,
+    blocks      => undef,
+    created     => undef,
+    modified    => undef,
+    name        => undef,
+    num         => undef,
+    size        => undef,
+    type        => undef,
+);
 
 #---------------------------------------------------------------------
 # Constructor:
@@ -618,6 +639,7 @@ sub new
     my ($type, $number, $entry) = @_;
     my $self = {};
 
+    $self->{'_permitted'} = \%fields;
     $self->{num} = $number;
     if ($entry) {
         @{$self}{'storage', 'name'} = parseName($entry);
@@ -727,6 +749,31 @@ sub writeDisk
                       $disk->padBlock($dataLo,"\0",0x100) . $dataHi,
                       "\0");
 } # end AppleII::ProDOS::Index::writeDisk
+
+#=====================================================================
+package AppleII::ProDOS::Members;
+#
+# Provides access functions for member variables.  This class is based
+# on code from Tom Christiansen's FMTEYEWTK on OO Perl vs. C++.
+#
+# Only those member variables whose names are listed in the _permitted
+# hash may be accessed.
+#---------------------------------------------------------------------
+
+use Carp;
+no strict;
+
+sub AUTOLOAD
+{
+    my $self = shift;
+    my $type = ref($self) || croak "$self is not an object";
+    my $name = $AUTOLOAD;
+    $name =~ s/.*://;   # strip fully-qualified portion
+    unless (exists $self->{_permitted}->{$name}) {
+        croak "Can't access `$name' field in object of class $type";
+    }
+    return $self->{$name};
+} # end AppleII::ProDOS::Members::AUTOLOAD
 
 #=====================================================================
 # Package Return Value:
