@@ -5,7 +5,7 @@ package AppleII::ProDOS;
 #
 # Author: Christopher J. Madsen <ac608@yfn.ysu.edu>
 # Created: 26 Jul 1996
-# Version: $Revision: 0.25 $ ($Date: 1996/08/19 04:48:06 $)
+# Version: $Revision: 0.26 $ ($Date: 1997/02/25 05:48:50 $)
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the same terms as Perl itself.
@@ -54,7 +54,7 @@ my %dir_methods = (
 BEGIN
 {
     # Convert RCS revision number to d.ddd format:
-    ' $Revision: 0.25 $ ' =~ / (\d+)\.(\d{1,3})(\.[0-9.]+)? /
+    ' $Revision: 0.26 $ ' =~ / (\d+)\.(\d{1,3})(\.[0-9.]+)? /
         or die "Invalid version number";
     $VERSION = $VERSION = sprintf("%d.%03d%s",$1,$2,$3);
 } # end BEGIN
@@ -216,7 +216,8 @@ sub path
         my $dir;
         foreach $dir (split(/\//, $newpath)) {
             eval { push @directories, $directories[-1]->open_dir($dir) };
-            croak("No such directory `$_[1]'") if $@ =~ /^No such directory/;
+            a2_croak("No such directory `$_[1]'")
+                if $@ =~ /^LibA2: No such directory/;
             die $@ if $@;
         }
         $self->{directories} = \@directories;
@@ -252,7 +253,7 @@ sub a2_croak
     while ((caller $Carp::CarpLevel)[0] =~ /^AppleII::ProDOS/) {
         ++$Carp::CarpLevel;
     }
-    &croak;
+    croak("LibA2: " . $_[0]);
 } # end AppleII::ProDOS::a2_croak
 
 #---------------------------------------------------------------------
@@ -536,9 +537,9 @@ sub get_blocks
     my $bitmap = $self->{bitmap};
   BLOCK:
     while ($bitmap =~ m/([^\0])/g) {
-        my ($offset, $byte) = (8*(pos($bitmap)-1), unpack('B8',$1));
+        my ($offset, $byte) = (8*pos($bitmap)-9, unpack('B8',$1));
         while ($byte =~ m/1/g) {
-            push @blocks, $offset + pos($byte)-1;
+            push @blocks, $offset + pos($byte);
             last BLOCK unless --$count;
         }
     } # end while BLOCK
@@ -549,6 +550,8 @@ sub get_blocks
 
 #---------------------------------------------------------------------
 # See if a block is free:
+#
+# This method is not currently used and may be removed.
 #
 # Input:
 #   block:  The block number to check
@@ -582,7 +585,7 @@ sub mark
         vec($self->{bitmap}, $block + $adjust[$block % 8],1) = $mark;
     }
     $self->{free} += ($mark ? 1 : -1) * ($#$blocks + 1);
-} # end AppleII::ProDOS::Bitmap::is_free
+} # end AppleII::ProDOS::Bitmap::mark
 
 #---------------------------------------------------------------------
 # Read bitmap from disk:
@@ -839,7 +842,7 @@ sub find_entry
 # Input:
 #   file:
 #     The name of the file to read, OR
-#     An AppleII::ProDOS::DirEntry object representing a file
+#     an AppleII::ProDOS::DirEntry object representing a file
 #
 # Returns:
 #   A new AppleII::ProDOS::File object for the file
@@ -947,7 +950,8 @@ sub new_dir
 # Open a subdirectory:
 #
 # Input:
-#   dir:  The name of the subdirectory to open
+#   dir:  The name of the subdirectory to open, OR
+#         an AppleII::ProDOS::DirEntry object representing the directory
 #
 # Returns:
 #   A new AppleII::ProDOS::Directory object for the subdirectory
@@ -956,8 +960,13 @@ sub open_dir
 {
     my ($self, $dir) = @_;
 
-    my $entry = $self->find_entry($dir)
-        or a2_croak("No such directory `$dir'");
+    my $entry = (ref($dir)
+                 ? $dir
+                 : ($self->find_entry($dir)
+                    or a2_croak("No such directory `$dir'")));
+
+    a2_croak('`' . $entry->name . "' is not a directory")
+        unless $entry->type == 0x0F;
 
     AppleII::ProDOS::Directory->open($self->{disk}, $entry->block,
                                      $self->{bitmap});
@@ -1568,6 +1577,313 @@ AppleII::ProDOS - Access files on Apple II ProDOS disk images
     my $file = $vol->get_file('Startup'); # Read file from disk
     $vol->path('Subdir');                 # Move into a subdirectory
     $vol->put_file($file);                # And write it back there
+
+=head1 DESCRIPTION
+
+C<AppleII::ProDOS> provides high-level access to ProDOS volumes stored
+in the disk image files used by most Apple II emulators.  (For
+information about Apple II emulators, try the Apple II Emulator Page
+at L<http://www.ecnet.net/users/mumbv/pages/apple2.shtml>.)  It uses
+the L<AppleII::Disk> module to handle low-level access to image files.
+
+All the following classes have two constructors.  Constructors named
+C<open> are for creating an object to represent existing data in the
+image file.  Constructors named C<new> are for creating a new object
+to be added to an image file.
+
+=head2 C<AppleII::ProDOS>
+
+C<AppleII::ProDOS> is the primary interface to ProDOS volumes.  It
+provides the following methods:
+
+=over 4
+
+=item $vol = AppleII::ProDOS->new($volume, $size, $filename, [$mode])
+
+Constructs a new image file and an C<AppleII::ProDOS> object to access
+it.  C<$volume> is the volume name.  C<$size> is the size in blocks.
+C<$filename> is the name of the image file.  The optional C<$mode> is
+a string specifying how to open the image (see the C<open> method for
+details).  You always receive read and write access.
+
+=item $vol = AppleII::ProDOS->open($filename, [$mode])
+
+Constructs an C<AppleII::ProDOS> object to access an existing image file.
+C<$filename> is the name of the image file.  The optional C<$mode> is
+a string specifying how to open the image.  It can consist of the
+following characters (I<case sensitive>):
+
+    r  Allow reads (this is actually ignored; you can always read)
+    w  Allow writes
+    d  Disk image is in DOS 3.3 order
+    p  Disk image is in ProDOS order
+
+=item $vol = AppleII::ProDOS->open($disk)
+
+Constructs an C<AppleII::ProDOS> object to access an existing image file.
+C<$disk> is the C<AppleII::Disk> object representing the image file.
+
+=item $bitmap = $vol->bitmap
+
+Returns the volume bitmap as an C<AppleII::ProDOS::Bitmap> object.
+
+=item $dir = $vol->dir
+
+Returns the current directory as an AppleII::ProDOS::Directory object.
+
+=item $disk = $vol->disk
+
+Returns the C<AppleII::ProDOS::Disk> object which represents the image
+file.
+
+=item $disk = $vol->disk_size
+
+Returns the size of the volume in blocks.  This is the logical size of
+the ProDOS volume, which is not necessarily the same as the actual
+size of the image file.
+
+=item $name = $vol->name
+
+Returns the volume name.
+
+=item $path = $vol->path([$newpath])
+
+Gets or sets the current path.  C<$newpath> is the new pathname, which
+may be either relative or absolute.  `..' may be used to specify the
+parent directory, but this must occur at the beginning of the path
+(`../../dir' is valid, but `../dir/..' is not).
+If c<$newpath>> is omitted, then the current path is not changed.
+Returns the current path as a string beginning and ending with C</>.
+
+=item $catalog = $vol->catalog
+
+=item $file = $vol->get_file($filename)
+
+=item $entry = $vol->new_dir($name)
+
+=item $vol->put_file($file)
+
+These methods are passed to the current directory.  See
+C<AppleII::ProDOS::Directory> for details.
+
+=back
+
+=head2 C<AppleII::ProDOS::Directory>
+
+C<AppleII::ProDOS::Directory> represents a ProDOS directory. It
+provides the following methods:
+
+=over 4
+
+=item $dir = AppleII::ProDOS::Directory->new($name, $disk, $blocks, $bitmap, [$parent, $parentNum])
+
+Constructs a new C<AppleII::ProDOS::Directory> object.
+C<$name> is the name of the directory.  C<$disk> is the
+C<AppleII::Disk> to create it on.  C<$blocks> is a block number or an
+array of block numbers to store the directory in.  C<$bitmap> is the
+C<AppleII::ProDOS::Bitmap> representing the volume bitmap.  For a
+subdirectory, C<$parent> must be the block number in the parent
+directory where the subdirectory is listed, and C<$parentNum> is the
+entry number in that block (with 1 being the first entry).
+
+=item $dir = AppleII::ProDOS->open($disk, $block, $bitmap)
+
+Constructs an C<AppleII::ProDOS::Directory> object to access an
+existing directory in the image file.  C<$disk> is the
+C<AppleII::Disk> object representing the image file.  C<$block> is the
+block number where the directory begins.  C<$bitmap> is the
+C<AppleII::ProDOS::Bitmap> representing the volume bitmap.
+
+=item $catalog = $dir->catalog
+
+Returns the directory listing in ProDOS format with free space information.
+
+=item @entries = $dir->entries
+
+Returns the contents of the directory as a list of
+C<AppleII::ProDOS::DirEntry> objects.
+
+=item $entry = $dir->find_entry($filename)
+
+Returns the C<AppleII::ProDOS::DirEntry> object for C<$filename>, or
+undef if the specified file does not exist.
+
+=item $file = $dir->get_file($filename)
+
+Retrieves a file from the directory.  C<$filename> may be either a
+filename or an C<AppleII::ProDOS::DirEntry> object.  Returns a new
+C<AppleII::ProDOS::File> object.
+
+=item @entries = $dir->list_matches($pattern, [$filter])
+
+Returns a list of the C<AppleII::ProDOS::DirEntry> objects matching
+the regexp C<$pattern>.  If C<$filter> is specified, it is either a
+subroutine reference or one of the strings 'DIR' or '!DIR'.  'DIR'
+matches only directories, and '!DIR' matches only regular files.  If
+C<$filter> is a subroutine, it is called (as C<\&$filter($entry)>) for
+each entry.  It should return true if the entry is acceptable (the
+entry's name must still match C<$pattern>).  Returns the null list if
+there are no matching entries.
+
+=item $entry = $dir->new_dir($name)
+
+Creates a new subdirectory in the directory.  C<$name> is the name of
+the new subdirectory.  Returns the C<AppleII::ProDOS::DirEntry> object
+representing the new subdirectory entry.
+
+=item $entry = $dir->open_dir($dirname)
+
+Opens a subdirectory of the directory.  C<$dirname> may be either a
+subdirectory name or an C<AppleII::ProDOS::DirEntry> object.  Returns
+a new C<AppleII::ProDOS::Directory> object.
+
+=item $dir->put_file($file)
+
+Stores a file in the directory.  C<$file> must be an
+C<AppleII::ProDOS::File> object.
+
+=item $dir->add_entry($entry)
+
+Adds a new entry to the directory.  C<$entry> is an
+C<AppleII::ProDOS::DirEntry> object.
+
+=item $dir->read_disk
+
+Rereads the directory contents from the image file.  You can use this
+to undo changes to a directory before they have been written to the
+image file.
+
+=item $dir->write_disk
+
+Writes the current directory contents to the image file.  You must use
+this if you alter the directory contents in any way except the
+high-level methods C<new_dir> and C<put_file>, which do this
+automatically.
+
+=back
+
+=head2 C<AppleII::ProDOS::DirEntry>
+
+C<AppleII::ProDOS::DirEntry> provides access to directory entries.
+It provides the following methods:
+
+=over 4
+
+=item $entry = AppleII::ProDOS::DirEntry->new([$num, $entry])
+
+Constructs a new C<AppleII::ProDOS::DirEntry> object.
+C<$num> is the entry number in the directory, and C<$entry> is the
+packed directory entry.  If C<$num> and C<$entry> are omitted, then a
+blank directory entry is created.  This is a low-level function; you
+shouldn't need to explicitly construct DirEntry objects.
+
+=item $packed_entry = $entry->packed($key_block)
+
+Return the directory entry in packed format.  C<$key_block> is the
+starting block number of the directory containing this entry.
+
+=item $access = $entry->access([$new])
+
+Gets or sets the access attributes.  This is a bitfield with the
+following entries:
+
+    0x80  File can be deleted
+    0x40  File can be renamed
+    0x20  File has changed since last backup
+    0x02  File can be written to
+    0x01  File can be read
+
+Normal values are 0xC3 or 0xE3 for an unlocked file, and 0x01 for a
+locked file.
+
+=item $auxtype = $entry->auxtype([$new])
+
+Gets or sets the auxiliary type.  This is a number between 0x0000 and
+0xFFFF.  Its meaning depends on the filetype.
+
+=item $creation_date = $entry->created([$date])
+
+Gets or sets the creation date and time in ProDOS format.
+
+=item $modification_date = $entry->modified([$date])
+
+Gets or sets the modification date and time in ProDOS format.
+
+=item $name = $entry->name([$new])
+
+Gets or sets the filename.
+
+=item $type = $entry->type([$new])
+
+Gets or sets the filetype.  This is a number between 0x00 and 0xFF.
+Use C<parse_type> to convert it to a more meaningful abbreviation.
+
+=item $type = $entry->short_type
+Returns the standard abbreviation for the filetype.  It is equivalent
+to calling C<AppleII::ProDOS::parse_type($entry-E<gt>type)>.
+
+=back
+
+The following methods allow access to read-only fields.  They can be
+used to initialize a DirEntry object created with C<new>, but raise an
+exception if the field already has a value.
+
+=over 4
+
+=item $block = $entry->block([$new])
+
+Gets or sets the key block for the file.
+
+=item $used = $entry->blks_used([$new])
+
+Gets or sets the number of blocks used by the file.
+
+=item $entry_num = $entry->num([$new])
+
+Gets or sets the entry number in the directory.
+
+=item $size = $entry->size([$new])
+
+Gets or sets the size of the file in bytes.
+
+=item $storage = $entry->storage([$new])
+
+Gets or sets the storage type.
+
+=back
+
+=head1 NOTE
+
+This is the point where I ran out of steam in documentation
+writing. :-)  If I get at least one email from someone who'd actually
+read the rest of this documentation, I'll try to finish it.
+
+=head2 C<AppleII::ProDOS::File>
+
+C<AppleII::ProDOS::File> represents a file's data and other attributes.
+
+=head2 C<AppleII::ProDOS::Bitmap>
+
+C<AppleII::ProDOS::Bitmap> represents the volume bitmap.
+
+=head2 C<AppleII::ProDOS::Index>
+
+C<AppleII::ProDOS::Index> represents an index block.
+
+=head1 BUGS
+
+=over 4
+
+=item *
+
+This document isn't finished yet.  I haven't been working on it
+recently, so I decided I might as well just release what I have.  If
+somebody writes me, I'm more likely to finish.  (That's a hint, folks.)
+
+=item *
+
+Mixed case filenames (ala GS/OS) are not supported.  All filenames are
+converted to upper case.
 
 =head1 AUTHOR
 
