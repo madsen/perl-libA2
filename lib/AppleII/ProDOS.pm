@@ -5,7 +5,7 @@ package AppleII::ProDOS;
 #
 # Author: Christopher J. Madsen <ac608@yfn.ysu.edu>
 # Created: 26 Jul 1996
-# Version: $Revision: 0.10 $ ($Date: 1996/07/31 21:24:00 $)
+# Version: $Revision: 0.11 $ ($Date: 1996/07/31 22:49:34 $)
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the same terms as Perl itself.
@@ -30,6 +30,7 @@ require Exporter;
 @EXPORT = qw();
 @EXPORT_OK = qw(
     packDate packName parseDate parseName parseType shortDate validName
+    a2_croak
 );
 
 #=====================================================================
@@ -38,7 +39,7 @@ require Exporter;
 BEGIN
 {
     # Convert RCS revision number to d.ddd format:
-    ' $Revision: 0.10 $ ' =~ / (\d+)\.(\d{1,3})(\.[0-9.]+)? /
+    ' $Revision: 0.11 $ ' =~ / (\d+)\.(\d{1,3})(\.[0-9.]+)? /
         or die "Invalid version number";
     $VERSION = $VERSION = sprintf("%d.%03d%s",$1,$2,$3);
 } # end BEGIN
@@ -158,6 +159,18 @@ sub getFile
 {
     shift->{directories}[-1]->getFile(@_);
 } # end AppleII::ProDOS::getFile
+
+#---------------------------------------------------------------------
+# Like croak, but get out of all AppleII::ProDOS classes:
+
+sub a2_croak
+{
+    local $Carp::CarpLevel = $Carp::CarpLevel;
+    while ((caller $Carp::CarpLevel)[0] =~ /^AppleII::ProDOS/) {
+        ++$Carp::CarpLevel;
+    }
+    &croak;
+} # end AppleII::ProDOS::a2_croak
 
 #---------------------------------------------------------------------
 # Convert a time to ProDOS format:
@@ -437,7 +450,7 @@ package AppleII::ProDOS::Directory;
 #   parentNum:  Our entry number within the parent directory
 #---------------------------------------------------------------------
 
-AppleII::ProDOS->import(qw(packName parseName shortDate));
+AppleII::ProDOS->import(qw(a2_croak packName parseName shortDate));
 use Carp;
 use strict;
 
@@ -486,7 +499,7 @@ sub addEntry
         last if $entries->[$i]{num} > $i+1;
     }
 
-    croak('Directory full') if ($i > $lastEntry); # FIXME expand dir
+    a2_croak('Directory full') if ($i > $lastEntry); # FIXME expand dir
 
     $entry->{num} = $i+1;
     splice @$entries, $i, 0, $entry;
@@ -545,7 +558,7 @@ sub getFile
     my ($self, $filename) = @_;
 
     my $entry = $self->findEntry($filename)
-        or croak("No such file `$filename'");
+        or a2_croak("No such file `$filename'");
 
     AppleII::ProDOS::File->open($self->{disk}, $entry);
 } # end AppleII::ProDOS::Directory::getFile
@@ -564,7 +577,7 @@ sub open
     my ($self, $dir) = @_;
 
     my $entry = $self->findEntry($dir)
-        or croak("No such directory `$dir'");
+        or a2_croak("No such directory `$dir'");
 
     AppleII::ProDOS::Directory->new($self->{disk}, $entry->block,
                                     $self->{blocks}[0], $entry->num);
@@ -856,32 +869,40 @@ my %fields = (
 #
 # Input:
 #   disk:   An AppleII::Disk
-#   block:  The block number to use
+#   block:  The block number to read
+#   count:  The number of blocks that are pointed to by this block
+#           (optional; default is 256)
 
 sub new
 {
-    my ($type, $disk, $block) = @_;
+    my ($type, $disk, $block, $count) = @_;
     my $self = {};
     $self->{disk} = $disk;
     $self->{block} = $block;
     $self->{'_permitted'} = \%fields;
 
     bless $self, $type;
-    $self->readDisk;
+    $self->readDisk($count);
     $self;
 } # end AppleII::ProDOS::Index::new;
 
 #---------------------------------------------------------------------
 # Read contents of index block from disk:
+#
+# Input:
+#   count:
+#     The number of blocks that are pointed to by this block
+#     (optional; default is 256)
 
 sub readDisk
 {
-    my $self = shift;
+    my ($self, $count) = @_;
+    $count = 0x100 unless $count;
     my @dataLo = unpack('C*',$self->{disk}->readBlock($self->{block}));
     my @dataHi = splice @dataLo, 0x100;
     my @blocks;
 
-    while (@dataLo) {
+    while (--$count >= 0) {
         push @blocks, shift(@dataLo) + 0x100 * shift(@dataHi);
     }
 
