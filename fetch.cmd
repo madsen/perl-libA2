@@ -1,6 +1,6 @@
 @echo off
 rem ======================================================================
-rem = $Id: fetch.cmd,v 1.2 1996/08/12 23:26:50 Madsen Exp $
+rem = $Id: fetch.cmd,v 1.3 1996/08/12 23:37:09 Madsen Exp $
 rem =
 rem = Collect files for LibA2
 rem ======================================================================
@@ -28,6 +28,7 @@ gosub getFile
 set file=pro_opt.pl
 gosub getFile
 
+ren /q makefile.pl Makefile.PL
 ren /q readme.pl README.PL
 echo Building README...
 README.PL
