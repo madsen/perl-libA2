@@ -5,7 +5,7 @@ package AppleII::ProDOS;
 #
 # Author: Christopher J. Madsen <ac608@yfn.ysu.edu>
 # Created: 26 Jul 1996
-# Version: $Revision: 0.12 $ ($Date: 1996/08/02 16:05:29 $)
+# Version: $Revision: 0.13 $ ($Date: 1996/08/02 16:21:47 $)
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the same terms as Perl itself.
@@ -39,7 +39,7 @@ require Exporter;
 BEGIN
 {
     # Convert RCS revision number to d.ddd format:
-    ' $Revision: 0.12 $ ' =~ / (\d+)\.(\d{1,3})(\.[0-9.]+)? /
+    ' $Revision: 0.13 $ ' =~ / (\d+)\.(\d{1,3})(\.[0-9.]+)? /
         or die "Invalid version number";
     $VERSION = $VERSION = sprintf("%d.%03d%s",$1,$2,$3);
 } # end BEGIN
@@ -79,7 +79,7 @@ my @filetypes = qw(
 #   volume:
 #     The volume name of the disk
 #---------------------------------------------------------------------
-# Constructor:
+# Constructor for opening an existing disk:
 #
 # There are two forms:
 #   new(disk); or
@@ -96,7 +96,7 @@ my @filetypes = qw(
 #       r  Allow reads (this is actually ignored; you can always read)
 #       w  Allow writes
 
-sub new
+sub open
 {
     my ($type, $disk, $mode) = @_;
     my $self = {};
@@ -113,13 +113,13 @@ sub new
     $disk->{maxlen} = 0x200 * $diskSize; # FIXME
 
     $self->{bitmap} =
-      AppleII::ProDOS::Bitmap->new($disk,$startBlock,$diskSize);
+      AppleII::ProDOS::Bitmap->open($disk,$startBlock,$diskSize);
 
-    $self->{directories} = [ AppleII::ProDOS::Directory->new($disk,2) ];
+    $self->{directories} = [ AppleII::ProDOS::Directory->open($disk,2) ];
     $self->{diskSize} = $diskSize;
 
     bless $self, $type;
-} # end AppleII::ProDOS::new
+} # end AppleII::ProDOS::open
 
 #---------------------------------------------------------------------
 # Return the disk catalog and free space information:
@@ -157,7 +157,7 @@ sub directory
         pop @directories while $#directories and $newdir =~ s'^\.\.(?:/|$)'';#'
         my $dir;
         foreach $dir (split(/\//, $newdir)) {
-            eval { push @directories, $directories[-1]->open($dir) };
+            eval { push @directories, $directories[-1]->openDir($dir) };
             croak("No such directory `$_[1]'") if $@ =~ /^No such directory/;
             die $@ if $@;
         }
@@ -342,7 +342,7 @@ my %fields = (
 );
 
 #---------------------------------------------------------------------
-# Constructor:
+# Constructor for reading an existing bitmap:
 #
 # Input:
 #   disk:        The AppleII::Disk to use
@@ -351,7 +351,7 @@ my %fields = (
 #     STARTBLOCK & BLOCKS are optional.  If they are omitted, we get
 #     the information from the volume directory.
 
-sub new
+sub open
 {
     my ($type, $disk, $startBlock, $diskSize) = @_;
     my $self = {};
@@ -369,7 +369,7 @@ sub new
     bless $self, $type;
     $self->readDisk;
     $self;
-} # end AppleII::ProDOS::Bitmap::new
+} # end AppleII::ProDOS::Bitmap::open
 
 #---------------------------------------------------------------------
 # Get some free blocks:
@@ -489,7 +489,7 @@ use Carp;
 use strict;
 
 #---------------------------------------------------------------------
-# Constructor:
+# Constructor for reading an existing directory:
 #
 # Input:
 #   disk:       An AppleII::Disk
@@ -497,7 +497,7 @@ use strict;
 #   parent:     The block number where the parent directory begins
 #   parentNum:  The entry number in the parent directory
 
-sub new
+sub open
 {
     my ($type, $disk, $block, $parent, $parentNum) = @_;
     my $self = {};
@@ -511,7 +511,7 @@ sub new
     bless $self, $type;
     $self->readDisk($block);
     $self;
-} # end AppleII::ProDOS::Directory::new
+} # end AppleII::ProDOS::Directory::open
 
 #---------------------------------------------------------------------
 # Add entry:
@@ -610,16 +610,16 @@ sub getFile
 # Returns:
 #   A new AppleII::ProDOS::Directory object for the subdirectory
 
-sub open
+sub openDir
 {
     my ($self, $dir) = @_;
 
     my $entry = $self->findEntry($dir)
         or a2_croak("No such directory `$dir'");
 
-    AppleII::ProDOS::Directory->new($self->{disk}, $entry->block,
-                                    $self->{blocks}[0], $entry->num);
-} # end AppleII::ProDOS::Directory::open
+    AppleII::ProDOS::Directory->open($self->{disk}, $entry->block,
+                                     $self->{blocks}[0], $entry->num);
+} # end AppleII::ProDOS::Directory::openDir
 
 #---------------------------------------------------------------------
 # Add a new file to the directory:

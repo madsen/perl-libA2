@@ -1,16 +1,16 @@
 #!perl
 #---------------------------------------------------------------------
-# $Id: prodos.pl,v 0.3 1996/08/02 16:07:13 Madsen Exp $
+# $Id: prodos.pl,v 0.4 1996/08/02 16:22:54 Madsen Exp $
 # Copyright 1996 Christopher J. Madsen
 #
 # A command-line shell for accessing ProDOS disk images
 #---------------------------------------------------------------------
 
-use AppleII::ProDOS 0.012;
+use AppleII::ProDOS 0.013;
 use Term::ReadLine;
 
 my $term = Term::ReadLine->new('ProDOS Shell');
-my $vol  = AppleII::ProDOS->new($ARGV[0],'w');
+my $vol  = AppleII::ProDOS->open($ARGV[0],'w');
 
 print $vol->directory,"\n";
 
