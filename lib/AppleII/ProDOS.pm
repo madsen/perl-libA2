@@ -5,7 +5,7 @@ package AppleII::ProDOS;
 #
 # Author: Christopher J. Madsen <ac608@yfn.ysu.edu>
 # Created: 26 Jul 1996
-# Version: $Revision: 0.13 $ ($Date: 1996/08/02 16:21:47 $)
+# Version: $Revision: 0.14 $ ($Date: 1996/08/03 17:07:39 $)
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the same terms as Perl itself.
@@ -23,14 +23,14 @@ use AppleII::Disk 0.007;
 use Carp;
 use POSIX 'mktime';
 use strict;
-use vars qw(@ISA @EXPORT @EXPORT_OK $VERSION);
+use vars qw(@ISA @EXPORT @EXPORT_OK $VERSION $AUTOLOAD);
 
 require Exporter;
 @ISA = qw(Exporter);
 @EXPORT = qw();
 @EXPORT_OK = qw(
-    packDate packName parseDate parseName parseType shortDate validName
-    a2_croak
+    packDate packName parseDate parseName parseType shell_wc shortDate
+    validName a2_croak
 );
 
 #=====================================================================
@@ -39,7 +39,7 @@ require Exporter;
 BEGIN
 {
     # Convert RCS revision number to d.ddd format:
-    ' $Revision: 0.13 $ ' =~ / (\d+)\.(\d{1,3})(\.[0-9.]+)? /
+    ' $Revision: 0.14 $ ' =~ / (\d+)\.(\d{1,3})(\.[0-9.]+)? /
         or die "Invalid version number";
     $VERSION = $VERSION = sprintf("%d.%03d%s",$1,$2,$3);
 } # end BEGIN
@@ -64,6 +64,13 @@ my @filetypes = qw(
     CMD $F1 $F2 $F3 $F4 $F5 $F6 $F7 $F8 OS  INT IVR BAS VAR REL SYS
 ); # end filetypes
 
+my %dir_methods = (
+    findEntry   => undef,
+    getFile     => undef,
+    listMatches => undef,
+    openDir     => undef,
+);
+
 #=====================================================================
 # package AppleII::ProDOS:
 #
@@ -82,8 +89,8 @@ my @filetypes = qw(
 # Constructor for opening an existing disk:
 #
 # There are two forms:
-#   new(disk); or
-#   new(filename, mode);
+#   open(disk); or
+#   open(filename, mode);
 #
 # Input:
 #   disk:
@@ -99,7 +106,7 @@ my @filetypes = qw(
 sub open
 {
     my ($type, $disk, $mode) = @_;
-    my $self = {};
+    my $self = { _dir_methods => \%dir_methods };
     $disk = AppleII::Disk->new($disk, $mode) unless ref $disk;
     $self->{disk} = $disk;
 
@@ -168,17 +175,28 @@ sub directory
 } # end AppleII::ProDOS::directory
 
 #---------------------------------------------------------------------
-sub getFile
-{
-    shift->{directories}[-1]->getFile(@_);
-} # end AppleII::ProDOS::getFile
-
-#---------------------------------------------------------------------
 sub putFile
 {
     my $self = shift;
     $self->{directories}[-1]->putFile($self->{bitmap}, @_);
 } # end AppleII::ProDOS::putFile
+
+#---------------------------------------------------------------------
+# Pass method calls along to the current directory:
+
+sub AUTOLOAD
+{
+    my $self = shift;
+    my $name = $AUTOLOAD;
+    $name =~ s/.*://;   # strip fully-qualified portion
+    unless (exists $self->{'_dir_methods'}{$name}) {
+        # Ignore special methods like DESTROY:
+        return undef if $name =~ /^[A-Z]+$/;
+        croak("Can't find method `$name'");
+    }
+
+    $self->{directories}[-1]->$name(@_);
+} # end AppleII::ProDOS::AUTOLOAD
 
 #---------------------------------------------------------------------
 # Like croak, but get out of all AppleII::ProDOS classes:
@@ -278,6 +296,23 @@ sub parseType
 {
     $filetypes[$_[0]];
 } # end AppleII::ProDOS::parseType
+
+#---------------------------------------------------------------------
+# Convert shell-type wildcards to Perl regexps:
+#
+# Input:
+#   The filename with optional wildcards
+#
+# Returns:
+#   A Perl regexp
+
+sub shell_wc
+{
+    '^' .
+    join('',
+         map { if (/\?/) {'.'} elsif (/\*/) {'.*'} else {quotemeta $_}}
+         split(//,$_[0]));
+} # end AppleII::ProDOS::shell_wc
 
 #---------------------------------------------------------------------
 # Convert a date & time to a short string:
@@ -600,6 +635,40 @@ sub getFile
 
     AppleII::ProDOS::File->open($self->{disk}, $entry);
 } # end AppleII::ProDOS::Directory::getFile
+
+#---------------------------------------------------------------------
+# List files matching a regexp:
+#
+# Input:
+#   pattern:
+#     The Perl regexp to match
+#     (AppleII::ProDOS::shell_wc converts shell-type wildcards to regexps)
+#   filter: (optional)
+#     A subroutine to run against the entries
+#     It must return a true value for the file to be accepted.
+#     There are three special values:
+#       undef   Match anything
+#       'DIR'   Match only directories
+#       '!DIR'  Match anything but directories
+#
+# Returns:
+#   A list of filenames matching the pattern
+
+sub listMatches
+{
+    my ($self, $pattern, $filter) = @_;
+    $filter = \&isDir   if $filter eq 'DIR';
+    $filter = \&isntDir if $filter eq '!DIR';
+    $filter = \&true    unless $filter;
+    map { ($_->name =~ /$pattern/i and &$filter($_))
+          ? $_->name
+          : () }
+        @{$self->{entries}};
+} # end AppleII::ProDOS::Directory::listMatches
+
+sub isDir   { $_[0]->type == 0x0F } # True if entry is directory
+sub isntDir { $_[0]->type != 0x0F } # True if entry is not directory
+sub true    { 1 }                   # Accept anything
 
 #---------------------------------------------------------------------
 # Open a subdirectory:
@@ -1153,7 +1222,7 @@ package AppleII::ProDOS::Members;
 #---------------------------------------------------------------------
 
 use Carp;
-no strict;
+use vars '$AUTOLOAD';
 
 sub AUTOLOAD
 {
@@ -1161,13 +1230,13 @@ sub AUTOLOAD
     my $type = ref($self) or croak("$self is not an object");
     my $name = $AUTOLOAD;
     $name =~ s/.*://;   # strip fully-qualified portion
-    unless (exists $self->{_permitted}{$name}) {
+    unless (exists $self->{'_permitted'}{$name}) {
         # Ignore special methods like DESTROY:
         return undef if $name =~ /^[A-Z]+$/;
         croak("Can't access `$name' field in object of class $type");
     }
     if ($#_) {
-        my $check = $self->{_permitted}{$name};
+        my $check = $self->{'_permitted'}{$name};
         my $ok;
         if (ref($check) eq 'CODE') {
             $ok = &$check;      # Pass our @_ to validator
