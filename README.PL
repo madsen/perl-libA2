@@ -1,6 +1,6 @@
 #!perl
 #---------------------------------------------------------------------
-# $Id: README.PL,v 1.1 1996/08/12 23:30:44 Madsen Exp $
+# $Id: README.PL,v 1.2 1996/08/13 01:26:41 Madsen Exp $
 # Copyright 1996 Christopher J. Madsen
 #
 # Create the README file for LibA2
@@ -10,7 +10,7 @@ my $version = '0.001'; # Update Makefile.PL too!
 
 open(STDOUT,'>README') or die;
 
-print "LibA2 $version\n";
+print "LibA2\tRelease $version\n";
 print <<'EOT';
 Copyright 1996 Christopher J. Madsen
 
@@ -23,14 +23,6 @@ minimal (i.e, nonexistent (Use the source, Luke!)), bugs are likely,
 and the interfaces are liable to change.  Use at your own risk.  Keep
 a recent backup handy.  Wait sixty minutes before swimming.
 
-LibA2 is free software; you can redistribute it and/or modify it under
-the same terms as Perl itself.
-
-LibA2 is distributed in the hope that it will be useful, but WITHOUT
-ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
-FITNESS FOR A PARTICULAR PURPOSE.  See either the GNU General Public
-License or the Artistic License for more details.
-
 All this having been said, I'm not aware of any serious bugs in LibA2
 (besides the ones listed in the BUGS section below).  Good luck!
 
@@ -40,7 +32,7 @@ EOT
 print 'The included utilities are:';
 
 list_util('prodos.pl');
-print <<'';
+print <<'EOT';
 	`prodos.pl' is the main end-user utility.  It provides a
 	Unix-style shell for accessing ProDOS volumes.  This allows
 	you to list the contents of disk images, create
@@ -49,14 +41,17 @@ print <<'';
 	the shell will have better editing, command & filename
 	completion, and a command history.
 
+	The parameters for prodos.pl are:
+		prodos IMAGE_FILE
+EOT
 #`
 list_util('pro_fmt.pl');
 print <<'';
 	`pro_fmt.pl' creates blank ProDOS disk images.  The images are
 	NOT bootable, because they lack the necessary code in the boot
 	blocks.  You can copy blocks 0 and 1 from a bootable disk to
-	fix this.  The parameters for pro_fmt are:
-		pro_fmt VOLUME_NAME SIZE_IN_BLOCKS IMAGE_FILE
+	fix this.  The parameters for pro_fmt.pl are:
+		pro_fmt VOLUME_NAME  SIZE_IN_BLOCKS  IMAGE_FILE
 	This is likely to change in the future.
 
 #`
@@ -67,7 +62,8 @@ print <<'';
 	doesn't use any form of compression; it simply moves
 	everything to the beginning of the disk, squashing out empty
 	space caused by deleting files.  Be careful with this, as it's
-	likely to have some bugs left.
+	likely to have some bugs left.  The parameters for pro_opt.pl are:
+		pro_opt SOURCE_IMAGE_FILE  DESTINATION_IMAGE_FILE
 
 #`
 list_util('awp2txt.pl');
@@ -75,7 +71,8 @@ print <<'';
 	`awp2txt.pl' converts AppleWorks word processor files into text
 	files.  This is a bit out of place in LibA2, because it has
 	nothing to do with disk images, but I included it because
-	users of LibA2 may find it useful.
+	users of LibA2 may find it useful.  The parameters for awp2txt are:
+		awp2txt FILE ...
 
 #`
 print <<'EOT';
@@ -108,6 +105,16 @@ print <<'';
 
 #'
 print <<'EOT';
+
+LICENSE
+	LibA2 is free software; you can redistribute it and/or modify
+	it under the same terms as Perl itself.
+
+	LibA2 is distributed in the hope that it will be useful, but
+	WITHOUT ANY WARRANTY; without even the implied warranty of
+	MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See
+	either the GNU General Public License or the Artistic License
+	for more details.
 
 BUGS
     If you use Unix or a similar operating system
@@ -158,7 +165,7 @@ sub list_mod
     die "No version for $file" unless $version;
     $file =~ s!/!::!g;
     $file =~ s/\.pm$//;
-    print "\n    $file\t$version\n";
+    print "\n    $file\tversion $version\n";
 } # end list_mod
 
 #---------------------------------------------------------------------
@@ -174,7 +181,7 @@ sub list_util
     }
     close PL;
     die "No version for $file" unless $version;
-    print "\n    $file\t$version\n";
+    print "\n    $file\t\tversion $version\n";
 } # end list_util
 
 # Local Variables:
