@@ -1,12 +1,14 @@
 #!perl
 #---------------------------------------------------------------------
-# $Id: README.PL,v 1.4 1996/08/13 04:36:30 Madsen Exp $
+# $Id: README.PL,v 1.5 1997/02/25 05:51:01 Madsen Exp $
 # Copyright 1996 Christopher J. Madsen
 #
 # Create the README file for LibA2
 #---------------------------------------------------------------------
 
-my $version = '0.002'; # Update Makefile.PL too!
+my $version = '0.003'; # Update Makefile.PL too!
+
+use Text::Tabs;
 
 open(STDOUT,'>README') or die;
 
@@ -77,6 +79,15 @@ print <<'';
 		awp2txt FILE ...
 
 #`
+list_util('var_display.pl');
+print <<'';
+	`var_display.pl' lists the contents of an Applesoft BASIC VAR file.
+	Currently, it can only display string variables and string arrays.
+	Like awp2txt, you must first extract the VAR file from the disk
+	image.  The parameters for var_display are:
+		var_display FILE
+
+#`
 print <<'EOT';
 
 For people interested in writing their own utilities in Perl, LibA2
@@ -85,7 +96,7 @@ images.  DOS 3.3 disks are not currently supported (except by
 AppleII::Disk, which doesn't care what kind of data is on the disk).
 
 EOT
-#'
+#')
 
 print "The included modules are:";
 
@@ -106,8 +117,22 @@ print <<'';
 	AppleII::ProDOS.
 
 #'
-print <<'EOT';
+print <<EOT;
 
+CHANGES
+    Here's what's new in version $version of LibA2:
+    (See the file \`Changes\' for the full revision history.)
+EOT
+
+open(CHANGES,"<Changes") or die;
+<CHANGES>;                      # Skip version on first line
+while (<CHANGES>) {
+    last if /^\*/;
+    print unexpand(' 'x6 . expand($_));
+}
+close CHANGES;
+
+print <<'EOT';
 LICENSE
 	LibA2 is free software; you can redistribute it and/or modify
 	it under the same terms as Perl itself.
@@ -127,11 +152,9 @@ BUGS
 	way of fixing this, please let me know.
 
     Documentation
-	There isn't any.  Yet.
-
-    AppleII::ProDOS
-	Cannot add blocks to a subdirectory.  If you try to add files
-	to a subdirectory with no free entries, it dies.
+	There isn't enough.  Yet.  If you'd like to read it, send
+	email.  If I think people want to read it, I'm far more likely
+	to write it. :-)  Until then, use the source, Luke.
 
     prodos.pl
 	There's no way to copy a file from a disk image under another
@@ -183,7 +206,8 @@ sub list_util
     }
     close PL;
     die "No version for $file" unless $version;
-    print "\n    $file\t\tversion $version\n";
+    $file .= "\t" unless length($file) > 11;
+    print "\n    $file\tversion $version\n";
 } # end list_util
 
 # Local Variables:
