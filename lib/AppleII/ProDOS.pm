@@ -3,9 +3,9 @@ package AppleII::ProDOS;
 #
 # Copyright 1996 Christopher J. Madsen
 #
-# Author: Christopher J. Madsen <ac608@yfn.ysu.edu>
+# Author: Christopher J. Madsen <cjm@pobox.com>
 # Created: 26 Jul 1996
-# Version: $Revision: 0.26 $ ($Date: 1997/02/25 05:48:50 $)
+# Version: $Revision: 0.27 $ ($Date: 2005/01/15 05:37:47 $)
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the same terms as Perl itself.
@@ -54,7 +54,7 @@ my %dir_methods = (
 BEGIN
 {
     # Convert RCS revision number to d.ddd format:
-    ' $Revision: 0.26 $ ' =~ / (\d+)\.(\d{1,3})(\.[0-9.]+)? /
+    ' $Revision: 0.27 $ ' =~ / (\d+)\.(\d{1,3})(\.[0-9.]+)? /
         or die "Invalid version number";
     $VERSION = $VERSION = sprintf("%d.%03d%s",$1,$2,$3);
 } # end BEGIN
@@ -1887,7 +1887,7 @@ converted to upper case.
 
 =head1 AUTHOR
 
-Christopher J. Madsen E<lt>F<ac608@yfn.ysu.edu>E<gt>
+Christopher J. Madsen E<lt>F<cjm@pobox.com>E<gt>
 
 =cut
 
