@@ -1,16 +1,27 @@
-#!perl
+#! /usr/bin/perl
 #---------------------------------------------------------------------
-# $Id: README.PL,v 1.7 1997/02/26 02:41:58 Madsen Exp $
+# $Id: README.PL,v 1.8 2005/01/15 05:34:34 Madsen Exp $
 # Copyright 1996 Christopher J. Madsen
 #
 # Create the README file for LibA2
 #---------------------------------------------------------------------
 
-my $version = '0.003'; # Update Makefile.PL too!
-
 use Text::Tabs;
 
+# Read version number from Makefile.PL:
+
+my $version;
+open(PL, "<Makefile.PL") or die;
+while (<PL>) {
+    $version = $1, last if /^\s* VERSION\s* => \s* '(.+?)'/x;
+}
+close PL;
+die unless defined $version;
+
+# Generate README:
+
 open(STDOUT,'>README') or die;
+binmode STDOUT;
 
 print "LibA2\tRelease $version\n";
 print <<'EOT';
@@ -171,7 +182,7 @@ BUGS
 	boot blocks from a bootable disk.
 
 AUTHOR
-	Christopher J. Madsen <ac608@yfn.ysu.edu>
+	Christopher J. Madsen <cjm@pobox.com>
 EOT
 #'
 
