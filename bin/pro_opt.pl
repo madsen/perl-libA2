@@ -1,6 +1,6 @@
 #!perl
 #---------------------------------------------------------------------
-# $Id: pro_opt.pl,v 0.3 1996/08/19 04:50:18 Madsen Exp $
+# $Id: pro_opt.pl,v 0.4 1997/02/26 02:33:41 Madsen Exp $
 # Copyright 1996 Christopher J. Madsen
 #
 # This program is free software; you can redistribute it and/or modify
@@ -58,6 +58,39 @@ sub mirror
         }
     }
 } # end mirror
+
+__END__
+
+=head1 NAME
+
+pro_opt - Optimize an Apple II ProDOS disk image file
+
+=head1 SYNOPSIS
+
+B<pro_opt> IMAGE-FILE OUTPUT-FILE
+
+=head1 DESCRIPTION
+
+B<pro_opt> eliminates wasted space from a disk image file containing
+an Apple II ProDOS volume.  It does this by creating a new disk image
+file and copying all files from the old image to the new one.  Any
+un-allocated blocks are eliminated from the new image file.
+
+=head1 REQUIREMENTS
+
+B<pro_opt> requires the modules AppleII::ProDOS and AppleII::Disk,
+which are included with LibA2.
+
+=head1 BUGS
+
+There are no known bugs, but you should keep a copy of your old image
+file until you're sure the optimized image file works properly.
+
+=head1 AUTHOR
+
+Christopher J. Madsen E<lt>F<ac608@yfn.ysu.edu>E<gt>
+
+=cut
 
 # Local Variables:
 # tmtrack-file-task: "LibA2: pro_opt.pl"
