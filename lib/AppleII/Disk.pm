@@ -5,7 +5,7 @@ package AppleII::Disk;
 #
 # Author: Christopher J. Madsen <ac608@yfn.ysu.edu>
 # Created: 25 Jul 1996
-# Version: $Revision: 0.3 $ ($Date: 1996/07/27 03:47:37 $)
+# Version: $Revision: 0.4 $ ($Date: 1996/07/28 18:00:17 $)
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the same terms as Perl itself.
@@ -21,6 +21,8 @@ package AppleII::Disk;
 require 5.000;
 use Carp;
 use FileHandle;
+use strict;
+use vars qw(@ISA @EXPORT @EXPORT_OK $VERSION);
 
 require Exporter;
 @ISA = qw(Exporter);
@@ -33,7 +35,7 @@ require Exporter;
 BEGIN
 {
     # Convert RCS revision number to d.ddd format:
-    ' $Revision: 0.3 $ ' =~ / (\d+)\.(\d{1,3})(\.[0-9.]+)? /
+    ' $Revision: 0.4 $ ' =~ / (\d+)\.(\d{1,3})(\.[0-9.]+)? /
         or die "Invalid version number";
     $VERSION = $VERSION = sprintf("%d.%03d%s",$1,$2,$3);
 } # end BEGIN
@@ -129,6 +131,25 @@ sub padBlock
 # Implemented in AppleII::Disk::ProDOS & AppleII::Disk::DOS33
 
 #---------------------------------------------------------------------
+# Read a series of ProDOS blocks:
+#
+# Input:
+#   blocks:  An array of block numbers to read
+#
+# Returns:
+#   The data from the disk (512 bytes times the number of blocks)
+
+sub readBlocks
+{
+    my ($self, $blocks) = @_;
+    my $data = '';
+    foreach (@$blocks) {
+        $data .= $self->readBlock($_);
+    }
+    $data;
+} # end AppleII::Disk::readBlocks
+
+#---------------------------------------------------------------------
 # Read a DOS 3.3 sector:
 #
 # Input:
@@ -152,6 +173,23 @@ sub padBlock
 # Implemented in AppleII::Disk::ProDOS & AppleII::Disk::DOS33
 
 #---------------------------------------------------------------------
+# Write a series of ProDOS blocks:
+#
+# Input:
+#   blocks:  An array of the block numbers to write to
+#   data:    The data to write (must be exactly the right size)
+
+sub writeBlocks
+{
+    my ($self, $blocks, $data) = @_;
+    my $index = 0;
+    foreach (@$blocks) {
+        $self->writeBlock($_, substr($data, $index, 0x200));
+        $index += 0x200;
+    }
+} # end AppleII::Disk::writeBlocks
+
+#---------------------------------------------------------------------
 # Write a DOS 3.3 sector:
 #
 # Input:
@@ -172,6 +210,8 @@ package AppleII::Disk::ProDOS;
 use Carp;
 use FileHandle;
 use integer;
+use strict;
+use vars qw(@ISA);
 
 @ISA = qw(AppleII::Disk);
 
@@ -245,6 +285,8 @@ package AppleII::Disk::DOS33;
 use Carp;
 use FileHandle;
 use integer;
+use strict;
+use vars qw(@ISA);
 
 @ISA = qw(AppleII::Disk);
 
