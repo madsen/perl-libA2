@@ -5,7 +5,7 @@ package AppleII::ProDOS;
 #
 # Author: Christopher J. Madsen <ac608@yfn.ysu.edu>
 # Created: 26 Jul 1996
-# Version: $Revision: 0.24 $ ($Date: 1996/08/19 01:47:59 $)
+# Version: $Revision: 0.25 $ ($Date: 1996/08/19 04:48:06 $)
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the same terms as Perl itself.
@@ -54,7 +54,7 @@ my %dir_methods = (
 BEGIN
 {
     # Convert RCS revision number to d.ddd format:
-    ' $Revision: 0.24 $ ' =~ / (\d+)\.(\d{1,3})(\.[0-9.]+)? /
+    ' $Revision: 0.25 $ ' =~ / (\d+)\.(\d{1,3})(\.[0-9.]+)? /
         or die "Invalid version number";
     $VERSION = $VERSION = sprintf("%d.%03d%s",$1,$2,$3);
 } # end BEGIN
@@ -837,7 +837,9 @@ sub find_entry
 # Read a file:
 #
 # Input:
-#   file:  The name of the file to read
+#   file:
+#     The name of the file to read, OR
+#     An AppleII::ProDOS::DirEntry object representing a file
 #
 # Returns:
 #   A new AppleII::ProDOS::File object for the file
@@ -846,8 +848,10 @@ sub get_file
 {
     my ($self, $filename) = @_;
 
-    my $entry = $self->find_entry($filename)
-        or a2_croak("No such file `$filename'");
+    my $entry = (ref($filename)
+                 ? $filename
+                 : ($self->find_entry($filename)
+                    or a2_croak("No such file `$filename'")));
 
     AppleII::ProDOS::File->open($self->{disk}, $entry);
 } # end AppleII::ProDOS::Directory::get_file
@@ -893,6 +897,9 @@ sub true     { 1 }                   # Accept anything
 #   dir:     The name of the subdirectory to create
 #   size:    The number of entries the directory should hold
 #            The default is to create a 1 block directory
+#
+# Returns:
+#   The DirEntry object for the new directory
 
 sub new_dir
 {
@@ -906,8 +913,9 @@ sub new_dir
     my @blocks = $self->{bitmap}->get_blocks($size)
         or a2_croak("Not enough free space");
 
+    my $entry = AppleII::ProDOS::DirEntry->new;
+
     eval {
-        my $entry = AppleII::ProDOS::DirEntry->new;
         $entry->storage(0xD);   # Directory
         $entry->name($dir);
         $entry->type(0x0F);     # Directory
@@ -931,6 +939,8 @@ sub new_dir
         $self->{bitmap}->read_disk;
         die $error;
     } # end if error while creating directory
+
+    $entry;
 } # end AppleII::ProDOS::Directory::new_dir
 
 #---------------------------------------------------------------------
