@@ -1,15 +1,15 @@
 #!perl
 #---------------------------------------------------------------------
-# $Id: prodos.pl,v 0.6 1996/08/03 19:43:38 Madsen Exp $
+# $Id: prodos.pl,v 0.7 1996/08/05 17:43:27 Madsen Exp $
 # Copyright 1996 Christopher J. Madsen
 #
 # A command-line shell for accessing ProDOS disk images
 #---------------------------------------------------------------------
 
-use AppleII::ProDOS qw(0.015 shell_wc);
+use AppleII::ProDOS qw(0.016 shell_wc);
 use Term::ReadLine;
 
-my @commands = qw(cd get lcd ls ll put pwd quit type);
+my @commands = qw(cd get lcd ls ll mkdir put pwd quit type);
 
 my $term = Term::ReadLine->new('ProDOS Shell');
 
@@ -42,6 +42,7 @@ while (1) {
         print($vol->get_file($arg)->as_text),next CMD if $cmd eq 'type';
         get_file($vol,$arg),                 next CMD if $cmd eq 'get';
         put_file($vol,$arg),                 next CMD if $cmd eq 'put';
+        $vol->new_dir($arg),                 next CMD if $cmd eq 'mkdir';
         (chdir($arg) || die "Bad directory"),next CMD if $cmd eq 'lcd';
         system('/bin/sh'),                   next CMD if $cmd eq '!';
         system(substr("$cmd $arg",1)),       next CMD if $cmd =~ /^!/;
