@@ -5,7 +5,7 @@ package AppleII::ProDOS;
 #
 # Author: Christopher J. Madsen <ac608@yfn.ysu.edu>
 # Created: 26 Jul 1996
-# Version: $Revision: 0.18 $ ($Date: 1996/08/12 17:22:20 $)
+# Version: $Revision: 0.19 $ ($Date: 1996/08/14 00:55:25 $)
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the same terms as Perl itself.
@@ -19,7 +19,7 @@ package AppleII::ProDOS;
 #---------------------------------------------------------------------
 
 require 5.000;
-use AppleII::Disk 0.008;
+use AppleII::Disk 0.009;
 use Carp;
 use POSIX 'mktime';
 use strict;
@@ -46,7 +46,7 @@ my %vol_fields = (
 BEGIN
 {
     # Convert RCS revision number to d.ddd format:
-    ' $Revision: 0.18 $ ' =~ / (\d+)\.(\d{1,3})(\.[0-9.]+)? /
+    ' $Revision: 0.19 $ ' =~ / (\d+)\.(\d{1,3})(\.[0-9.]+)? /
         or die "Invalid version number";
     $VERSION = $VERSION = sprintf("%d.%03d%s",$1,$2,$3);
 } # end BEGIN
@@ -107,7 +107,7 @@ sub new
     a2_croak("Invalid name `$name'") unless valid_name($name);
 
     my $disk = AppleII::Disk->new($filename, ($mode || '') . 'rw');
-    $disk->{maxlen} = 0x200 * $diskSize; # FIXME
+    $disk->blocks($diskSize);
 
     my $self = {
         bitmap =>
@@ -158,7 +158,7 @@ sub open
     croak('This is not a ProDOS disk') unless $storageType == 0xF;
 
     my ($startBlock, $diskSize) = unpack('x39v2',$volDir);
-    $disk->{maxlen} = 0x200 * $diskSize; # FIXME
+    $disk->blocks($diskSize);
 
     $self->{bitmap} =
       AppleII::ProDOS::Bitmap->open($disk,$startBlock,$diskSize);
@@ -1494,6 +1494,25 @@ sub AUTOLOAD
 1;
 
 __END__
+
+=head1 NAME
+
+AppleII::ProDOS - Access files on Apple II ProDOS disk images
+
+=head1 SYNOPSIS
+
+    use AppleII::ProDOS;
+    my $vol = AppleII::ProDOS->open('image.dsk'); # Open an existing disk
+    print $vol->catalog;                  # List files in volume directory
+    my $file = $vol->get_file('Startup'); # Read file from disk
+    $vol->path('Subdir');                 # Move into a subdirectory
+    $vol->put_file($file);                # And write it back there
+
+=head1 AUTHOR
+
+Christopher J. Madsen E<lt>F<ac608@yfn.ysu.edu>E<gt>
+
+=cut
 
 # Local Variables:
 # tmtrack-file-task: "AppleII::ProDOS.pm"
