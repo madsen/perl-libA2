@@ -5,7 +5,7 @@ package AppleII::ProDOS;
 #
 # Author: Christopher J. Madsen <ac608@yfn.ysu.edu>
 # Created: 26 Jul 1996
-# Version: $Revision: 0.23 $ ($Date: 1996/08/19 00:57:31 $)
+# Version: $Revision: 0.24 $ ($Date: 1996/08/19 01:47:59 $)
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the same terms as Perl itself.
@@ -54,7 +54,7 @@ my %dir_methods = (
 BEGIN
 {
     # Convert RCS revision number to d.ddd format:
-    ' $Revision: 0.23 $ ' =~ / (\d+)\.(\d{1,3})(\.[0-9.]+)? /
+    ' $Revision: 0.24 $ ' =~ / (\d+)\.(\d{1,3})(\.[0-9.]+)? /
         or die "Invalid version number";
     $VERSION = $VERSION = sprintf("%d.%03d%s",$1,$2,$3);
 } # end BEGIN
@@ -532,14 +532,16 @@ sub get_blocks
 {
     my ($self, $count) = @_;
     return () if $count > $self->{free};
-    my (@blocks,$i);
-    my $diskSize = $self->{diskSize};
-    for ($i=3; $i < $diskSize; $i++) {
-        if ($self->is_free($i)) {
-            push @blocks, $i;
-            last unless --$count;
+    my @blocks;
+    my $bitmap = $self->{bitmap};
+  BLOCK:
+    while ($bitmap =~ m/([^\0])/g) {
+        my ($offset, $byte) = (8*(pos($bitmap)-1), unpack('B8',$1));
+        while ($byte =~ m/1/g) {
+            push @blocks, $offset + pos($byte)-1;
+            last BLOCK unless --$count;
         }
-    }
+    } # end while BLOCK
     return () if $count;        # We couldn't find enough
     $self->mark(\@blocks,0);    # Mark blocks as in use
     @blocks;
