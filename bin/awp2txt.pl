@@ -1,6 +1,6 @@
-#!perl
+#! /usr/bin/perl
 #---------------------------------------------------------------------
-# $Id: awp2txt.pl,v 0.5 1997/02/26 03:38:49 Madsen Exp $
+# $Id: awp2txt.pl,v 0.6 2005/01/15 04:39:16 Madsen Exp $
 # Copyright 1996 Christopher J. Madsen
 #
 # This program is free software; you can redistribute it and/or modify
@@ -100,7 +100,7 @@ There are no known bugs.
 
 =head1 AUTHOR
 
-Christopher J. Madsen E<lt>F<ac608@yfn.ysu.edu>E<gt>
+Christopher J. Madsen E<lt>F<cjm@pobox.com>E<gt>
 
 =cut
 

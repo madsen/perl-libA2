@@ -1,6 +1,6 @@
-#!perl
+#! /usr/bin/perl
 #---------------------------------------------------------------------
-# $Id: pro_opt.pl,v 0.4 1997/02/26 02:33:41 Madsen Exp $
+# $Id: pro_opt.pl,v 0.5 2005/01/15 05:05:03 Madsen Exp $
 # Copyright 1996 Christopher J. Madsen
 #
 # This program is free software; you can redistribute it and/or modify
@@ -88,7 +88,7 @@ file until you're sure the optimized image file works properly.
 
 =head1 AUTHOR
 
-Christopher J. Madsen E<lt>F<ac608@yfn.ysu.edu>E<gt>
+Christopher J. Madsen E<lt>F<cjm@pobox.com>E<gt>
 
 =cut
 
