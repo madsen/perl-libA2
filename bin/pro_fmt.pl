@@ -1,7 +1,15 @@
 #!perl
 #---------------------------------------------------------------------
-# $Id: pro_fmt.pl,v 0.2 1996/08/12 17:49:47 Madsen Exp $
+# $Id: pro_fmt.pl,v 0.3 1996/08/12 21:15:18 Madsen Exp $
 # Copyright 1996 Christopher J. Madsen
+#
+# This program is free software; you can redistribute it and/or modify
+# it under the same terms as Perl itself.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See either the
+# GNU General Public License or the Artistic License for more details.
 #
 # Create a blank ProDOS disk image
 #---------------------------------------------------------------------

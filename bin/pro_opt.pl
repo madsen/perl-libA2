@@ -1,12 +1,20 @@
 #!perl
 #---------------------------------------------------------------------
-# $Id: pro_opt.pl,v 0.1 1996/08/12 17:50:28 Madsen Exp $
+# $Id: pro_opt.pl,v 0.2 1996/08/12 21:16:16 Madsen Exp $
 # Copyright 1996 Christopher J. Madsen
+#
+# This program is free software; you can redistribute it and/or modify
+# it under the same terms as Perl itself.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See either the
+# GNU General Public License or the Artistic License for more details.
 #
 # Optimize a ProDOS disk image
 #---------------------------------------------------------------------
 
-use AppleII::ProDOS 0.016;
+use AppleII::ProDOS 0.018;
 use strict;
 
 my ($file1, $file2) = @ARGV;

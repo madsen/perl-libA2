@@ -1,7 +1,15 @@
 #!perl
 #---------------------------------------------------------------------
-# $Id: prodos.pl,v 0.7 1996/08/05 17:43:27 Madsen Exp $
+# $Id: prodos.pl,v 0.8 1996/08/12 21:14:48 Madsen Exp $
 # Copyright 1996 Christopher J. Madsen
+#
+# This program is free software; you can redistribute it and/or modify
+# it under the same terms as Perl itself.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See either the
+# GNU General Public License or the Artistic License for more details.
 #
 # A command-line shell for accessing ProDOS disk images
 #---------------------------------------------------------------------
