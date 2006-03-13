@@ -1,6 +1,6 @@
 #!perl
 #---------------------------------------------------------------------
-# $Id: var_display.pl,v 1.4 1997/02/26 02:31:29 Madsen Exp $
+# $Id$
 # Copyright 1996 Christopher J. Madsen
 #
 # This program is free software; you can redistribute it and/or modify

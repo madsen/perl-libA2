@@ -1,0 +1,12 @@
+Changes				The revision history of LibA2
+MANIFEST			Please see MANIFEST
+Makefile.PL			MakeMaker Makefile
+README				About the files that make up LibA2
+TODO				Features that might get implemented someday
+bin/awp2txt.pl			Convert AppleWorks word processor files to text
+bin/pro_fmt.pl			Creates blank ProDOS disk images
+bin/pro_opt.pl			Removes unused space from ProDOS disk images
+bin/prodos.pl			Shell for accessing ProDOS volumes
+bin/var_display.pl		Display strings from Applesoft BASIC VAR file
+lib/AppleII/Disk.pm		Block-level access to disk images
+lib/AppleII/ProDOS.pm		High-level functions to access ProDOS volumes

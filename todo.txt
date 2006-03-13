@@ -1,4 +1,4 @@
-$$ $Id: todo.txt,v 1.2 1997/02/25 06:09:37 Madsen Exp $
+$$ $Id$
 ===============================================================================
 LibA2                            Things to Do                       $%    11d%$
 ===============================================================================
@@ -9,7 +9,7 @@ organized by file, and ranked on a scale of 1 to 10, where 10 means
 this, if there's a blizzard and I'm stuck in the house for a month".
 
 If you'd like to attempt one of these projects, contact me at
-<ac608@yfn.ysu.edu>.  Many of them aren't very difficult; I just have
+<cjm@pobox.com>.  Many of them aren't very difficult; I just have
 other things to do.
 
 AppleII::Disk.pm

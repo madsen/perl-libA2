@@ -1,6 +1,6 @@
 #!perl
 #---------------------------------------------------------------------
-# $Id: pro_fmt.pl,v 0.3 1996/08/12 21:15:18 Madsen Exp $
+# $Id$
 # Copyright 1996 Christopher J. Madsen
 #
 # This program is free software; you can redistribute it and/or modify

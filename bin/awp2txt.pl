@@ -1,6 +1,6 @@
 #! /usr/bin/perl
 #---------------------------------------------------------------------
-# $Id: awp2txt.pl,v 0.6 2005/01/15 04:39:16 Madsen Exp $
+# $Id$
 # Copyright 1996 Christopher J. Madsen
 #
 # This program is free software; you can redistribute it and/or modify

@@ -1,6 +1,6 @@
 #! /usr/bin/perl
 #---------------------------------------------------------------------
-# $Id: pro_opt.pl,v 0.5 2005/01/15 05:05:03 Madsen Exp $
+# $Id$
 # Copyright 1996 Christopher J. Madsen
 #
 # This program is free software; you can redistribute it and/or modify

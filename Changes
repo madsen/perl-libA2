@@ -1,0 +1,49 @@
+* LibA2 0.003 beta (February 26, 1997)
+
+  First beta release of LibA2
+
+  New utilities:
+    var_display.pl	version 1.004
+
+  Updated utilities:
+    awp2txt.pl		version 0.005
+      Includes documentation
+
+    prodos.pl		version 0.010
+      Includes documentation
+      Supports an external pager for long text displays
+
+    pro_opt.pl		version 0.004
+      Includes documentation
+      Now runs much faster
+
+  Updated modules:
+    AppleII::Disk	version 0.009
+      Includes documentation
+      Added blocks method to get/set disk size
+
+    AppleII::ProDOS	version 0.026
+      Includes documentation (still incomplete)
+      Adding a file to a full subdirectory automatically expands the
+	subdirectory.
+      Allocating free blocks is now much more efficient.  This make
+	the volume optimizer (pro_opt.pl) much much faster.
+
+* LibA2 0.002 alpha (August 12, 1996)
+
+  First public release of LibA2
+
+  New utilities:
+    prodos.pl		version 0.008
+    pro_fmt.pl		version 0.003
+    pro_opt.pl		version 0.002
+    awp2txt.pl		version 0.004
+
+  New modules:
+    AppleII::Disk	version 0.008
+    AppleII::ProDOS	version 0.018
+
+* LibA2 0.001 alpha (August 12, 1996)
+
+  A problem during uploading caused this version to be rechristened
+  version 0.002.

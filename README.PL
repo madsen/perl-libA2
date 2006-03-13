@@ -1,6 +1,6 @@
 #! /usr/bin/perl
 #---------------------------------------------------------------------
-# $Id: README.PL,v 1.8 2005/01/15 05:34:34 Madsen Exp $
+# $Id$
 # Copyright 1996 Christopher J. Madsen
 #
 # Create the README file for LibA2
