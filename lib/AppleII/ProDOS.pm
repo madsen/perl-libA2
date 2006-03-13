@@ -5,7 +5,7 @@ package AppleII::ProDOS;
 #
 # Author: Christopher J. Madsen <cjm@pobox.com>
 # Created: 26 Jul 1996
-# Version: $Revision: 0.27 $ ($Date: 2005/01/15 05:37:47 $)
+# $Id$
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the same terms as Perl itself.
@@ -19,7 +19,7 @@ package AppleII::ProDOS;
 #---------------------------------------------------------------------
 
 require 5.000;
-use AppleII::Disk 0.009;
+use AppleII::Disk 0.04;
 use Carp;
 use POSIX 'mktime';
 use strict;
@@ -53,10 +53,7 @@ my %dir_methods = (
 
 BEGIN
 {
-    # Convert RCS revision number to d.ddd format:
-    ' $Revision: 0.27 $ ' =~ / (\d+)\.(\d{1,3})(\.[0-9.]+)? /
-        or die "Invalid version number";
-    $VERSION = $VERSION = sprintf("%d.%03d%s",$1,$2,$3);
+    $VERSION = '0.04';
 } # end BEGIN
 
 # Filetype list from About Apple II File Type Notes -- June 1992
@@ -1284,30 +1281,40 @@ sub open
                     storage type version);
     @{$self}{@fields} = @{$entry}{@fields};
 
-    my ($storage, $keyBlock, $blksUsed, $size) =
-        @{$entry}{qw(storage block blksUsed size)};
+    my ($storage, $keyBlock, $size) =
+        @{$entry}{qw(storage block size)};
 
     my $data;
     if ($storage == 1) {
         $data = $disk->read_block($keyBlock);
-    } elsif ($storage == 2) {
-        my $index = AppleII::ProDOS::Index->open($disk,$keyBlock,$blksUsed-1);
+    } else {
+      # Calculate the number of data blocks:
+      #   (In a sparse file, not all these blocks
+      #    are actually allocated.)
+      my $blksUsed = int(($size + 0x1FF) / 0x200);
+
+      if ($storage == 2) {
+        my $index = AppleII::ProDOS::Index->open($disk,$keyBlock,$blksUsed);
         $data = $disk->read_blocks($index->blocks);
-    } elsif ($storage == 3) {
-        my $blksUsed    = int(($size + 0x1FF) / 0x200);
+      } elsif ($storage == 3) {
         my $indexBlocks = int(($blksUsed + 0xFF) / 0x100);
         my $index = AppleII::ProDOS::Index->open($disk,$keyBlock,$indexBlocks);
         my (@blocks,$block);
         foreach $block (@{$index->blocks}) {
+          if ($block) {
             my $subindex = AppleII::ProDOS::Index->open($disk,$block);
             push @blocks,@{$subindex->blocks};
-        }
+          } else {
+            push @blocks, (0) x 0x100; # Sparse index block
+          }
+        } # end foreach subindex block
         $#blocks = $blksUsed-1; # Use only the first $blksUsed blocks
         $data = $disk->read_blocks(\@blocks);
         $self->{indexBlocks} = $indexBlocks;
-    } else {
+      } else {
         croak("Unsupported storage type $storage");
-    }
+      }
+    } # end else not a seedling file
 
     substr($data, $size) = '' if length($data) > $size;
     $self->{'data'} = $data;

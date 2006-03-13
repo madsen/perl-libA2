@@ -5,7 +5,7 @@ package AppleII::Disk;
 #
 # Author: Christopher J. Madsen <cjm@pobox.com>
 # Created: 25 Jul 1996
-# Version: $Revision: 0.10 $ ($Date: 2005/01/15 05:37:23 $)
+# $Id$
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the same terms as Perl itself.
@@ -34,10 +34,7 @@ require Exporter;
 
 BEGIN
 {
-    # Convert RCS revision number to d.ddd format:
-    ' $Revision: 0.10 $ ' =~ / (\d+)\.(\d{1,3})(\.[0-9.]+)? /
-        or die "Invalid version number";
-    $VERSION = $VERSION = sprintf("%d.%03d%s",$1,$2,$3);
+  $VERSION = '0.04';
 } # end BEGIN
 
 #=====================================================================
@@ -167,6 +164,11 @@ sub blocks
 #---------------------------------------------------------------------
 # Read a series of ProDOS blocks:
 #
+# As a special case, block 0 cannot be read by this method.  Instead,
+# it returns a block full of 0 bytes.  This is how sparse files are
+# implemented.  If you want to read the actual contents of block 0,
+# you must call $disk->read_block(0) directly.
+#
 # Input:
 #   blocks:  An array of block numbers to read
 #
@@ -175,12 +177,13 @@ sub blocks
 
 sub read_blocks
 {
-    my ($self, $blocks) = @_;
-    my $data = '';
-    foreach (@$blocks) {
-        $data .= $self->read_block($_);
-    }
-    $data;
+  my ($self, $blocks) = @_;
+  my $data = '';
+  foreach (@$blocks) {
+    if ($_) { $data .= $self->read_block($_) }
+    else    { $data .= "\0" x 0x200          } # Sparse block
+  }
+  $data;
 } # end AppleII::Disk::read_blocks
 
 #---------------------------------------------------------------------
@@ -501,7 +504,11 @@ read.
 =item $contents = $disk->read_blocks(\@blocks)
 
 Reads a sequence of blocks from the disk image.  C<\@blocks> is a
-reference to an array of block numbers.
+reference to an array of block numbers.  As a special case, block 0
+cannot be read by this method.  Instead, it returns a block full of 0
+bytes.  This is how sparse files are implemented.  If you want to read
+the actual contents of block 0, you must call $disk->read_block(0)
+directly.
 
 =item $contents = $disk->read_sector($track, $sector)
 
