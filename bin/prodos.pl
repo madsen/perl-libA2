@@ -1,6 +1,6 @@
 #! /usr/bin/perl
 #---------------------------------------------------------------------
-# $Id: prodos.pl,v 0.11 2005/01/15 05:06:08 Madsen Exp $
+# $Id$
 # Copyright 1996 Christopher J. Madsen
 #
 # This program is free software; you can redistribute it and/or modify
@@ -26,7 +26,7 @@ my @commands = qw(cd dir get lcd ls ll mkdir put pwd quit type);
 
 my $term = Term::ReadLine->new('ProDOS Shell');
 
-if ($term->ReadLine eq 'Term::ReadLine::readline_pl') {
+if ($term->ReadLine eq 'Term::ReadLine::Perl') {
     $readline::rl_basic_word_break_characters     = ". \t\n";
     $readline::rl_completer_word_break_characters =
     $readline::rl_completer_word_break_characters = " \t\n";
@@ -53,7 +53,8 @@ while (1) {
         print("Use `dir' or `type' instead\a\n"),next CMD if $cmd eq 'cat';
         print($vol->path($arg),"\n"),        next CMD if $cmd eq 'cd';
         display($vol->catalog,"\n"),         next CMD if $cmd =~ /^l[sl]$/
-            or                                           $cmd eq 'dir';
+            or                                           $cmd eq 'dir'
+            or                                           $cmd eq 'v';
         display($vol->get_file($arg)->as_text),next CMD if $cmd eq 'type';
         get_file($vol,$arg),                 next CMD if $cmd eq 'get';
         put_file($vol,$arg),                 next CMD if $cmd eq 'put';
@@ -160,7 +161,7 @@ ProDOS volume.
 Change the current directory on the ProDOS volume to I<PATH>.  Use
 B<lcd> to change the directory on the native filesystem.
 
-=item B<dir>, B<ls>, or B<ll>
+=item B<dir>, B<ls>, B<ll>, or B<v>
 
 List the contents of the current directory on the ProDOS volume.
 
@@ -201,7 +202,9 @@ Start a subshell.
 
 =head1 REQUIREMENTS
 
-B<prodos> requires Term::ReadLine, available on CPAN.
+B<prodos> requires Term::ReadLine, which is now distributed with Perl.
+For best results, you should also have Term::ReadLine::Perl, which is
+available on CPAN.
 
 It also requires the modules AppleII::ProDOS and AppleII::Disk,
 which are included with LibA2.
