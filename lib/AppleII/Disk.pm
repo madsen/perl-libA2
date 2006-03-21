@@ -20,7 +20,7 @@ package AppleII::Disk;
 
 require 5.000;
 use Carp;
-use FileHandle;
+use IO::File;
 use strict;
 use vars qw($VERSION);
 
@@ -38,7 +38,7 @@ BEGIN
 # Member Variables:
 #   filename:  The pathname of the disk image file
 #   writable:  True if the image is opened in read/write mode
-#   file:      The FileHandle attached to the image file
+#   file:      The IO::File attached to the image file
 #   actlen:    The size of the image file in bytes
 #   maxlen:    The maximum allowable size of the image file in bytes
 #---------------------------------------------------------------------
@@ -61,22 +61,21 @@ sub new
     my $self = {};
     $self->{filename} = $filename;
 
-    my $file = new FileHandle;
+    my $file = IO::File->new;
 
     $mode = 'r' unless $mode;
     my $openMode = '<';
     if ($mode =~ /w/) {
         $self->{writable} = 1;
         $openMode = '+<';
-        $file->open(">$filename") or croak("Couldn't create `$filename'")
-            if not -e $filename; # Create empty file
+        $openMode = '+>' if not -e $filename; # Create empty file
     } # end if writable
 
-    $file->open("$openMode$filename") or croak("Couldn't open `$filename'");
-    binmode $file;
+    $file->open($filename, $openMode) or croak("Couldn't open `$filename': $!");
+    $file->binmode;
 
     $self->{file}   = $file;
-    $self->{actlen} = (stat $file)[7]; # Get real size of file
+    $self->{actlen} = ($file->stat)[7]; # Get real size of file
     $self->{maxlen} = $self->{actlen};
 
     $type = 'AppleII::Disk::ProDOS' if $mode =~ /p/;
@@ -247,7 +246,7 @@ package AppleII::Disk::ProDOS;
 #---------------------------------------------------------------------
 
 use Carp;
-use FileHandle;
+use IO::File;
 use integer;
 use strict;
 use vars qw(@ISA);
@@ -323,7 +322,7 @@ package AppleII::Disk::DOS33;
 #$debug = 1;
 
 use Carp;
-use FileHandle;
+use IO::File;
 use integer;
 use strict;
 use vars qw(@ISA);
