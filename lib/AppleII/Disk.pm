@@ -22,12 +22,7 @@ require 5.000;
 use Carp;
 use FileHandle;
 use strict;
-use vars qw(@ISA @EXPORT @EXPORT_OK $VERSION);
-
-require Exporter;
-@ISA = qw(Exporter);
-@EXPORT = qw();
-@EXPORT_OK = qw();
+use vars qw($VERSION);
 
 #=====================================================================
 # Package Global Variables:
