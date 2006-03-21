@@ -308,9 +308,10 @@ sub write_block
 
     $data = $self->pad_block($data, $pad || '');
 
-    $self->seek_block($block);
+    my $pos = $self->seek_block($block);
     print {$self->{file}} $data or die;
-    $self->{actlen} = (stat $self->{file})[7];
+
+    $self->{actlen} = $pos + 0x200 unless $self->{actlen} > $pos;
 } # end AppleII::Disk::ProDOS::write_block
 
 #=====================================================================
@@ -407,9 +408,10 @@ sub write_sector
 
     $data = $self->pad_block($data, $pad || '', 0x100);
 
-    $self->seek_sector($track, $sector);
+    my $pos = $self->seek_sector($track, $sector);
     print {$self->{file}} $data or die;
-    $self->{actlen} = (stat $self->{file})[7];
+
+    $self->{actlen} = $pos + 0x100 unless $self->{actlen} > $pos;
 } # end AppleII::Disk::DOS33::write_sector
 
 #---------------------------------------------------------------------
