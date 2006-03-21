@@ -11,9 +11,9 @@ use Text::Tabs;
 # Read version number from Makefile.PL:
 
 my $version;
-open(PL, "<Makefile.PL") or die;
+open(PL, "<Build.PL") or die;
 while (<PL>) {
-    $version = $1, last if /^\s* VERSION\s* => \s* '(.+?)'/x;
+    $version = $1, last if /^\s* dist_version\s* => \s* '(.+?)'/x;
 }
 close PL;
 die unless defined $version;
