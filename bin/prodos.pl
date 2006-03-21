@@ -17,6 +17,8 @@
 use AppleII::ProDOS qw(0.016 shell_wc);
 use Term::ReadLine;
 
+our $VERSION = '0.04';
+
 my $maxscreen = 20;
 my $pager     = $ENV{PAGER};
 my $shell     = $ENV{SHELL} || '/bin/sh';

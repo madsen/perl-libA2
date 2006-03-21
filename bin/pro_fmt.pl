@@ -1,4 +1,4 @@
-#!perl
+#! /usr/bin/perl
 #---------------------------------------------------------------------
 # $Id$
 # Copyright 1996 Christopher J. Madsen
@@ -15,5 +15,7 @@
 #---------------------------------------------------------------------
 
 use AppleII::ProDOS 0.016;
+
+our $VERSION = '0.003';
 
 my $vol = AppleII::ProDOS->new(@ARGV);

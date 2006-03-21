@@ -14,8 +14,10 @@
 # Optimize a ProDOS disk image
 #---------------------------------------------------------------------
 
-use AppleII::ProDOS 0.025;
+use AppleII::ProDOS 0.04;
 use strict;
+
+our $VERSION = '0.04';
 
 my ($file1, $file2) = @ARGV;
 
@@ -76,6 +78,11 @@ an Apple II ProDOS volume.  It does this by creating a new disk image
 file and copying all files from the old image to the new one.  Any
 un-allocated blocks are eliminated from the new image file.
 
+Note that some emulators cannot deal with image files that are smaller
+than their nominal size.  That is, they expect a 280 block disk image
+file to be 143,360 bytes long.  B<pro_opt> should not be used with
+such emulators.
+
 =head1 REQUIREMENTS
 
 B<pro_opt> requires the modules AppleII::ProDOS and AppleII::Disk,
@@ -83,7 +90,10 @@ which are included with LibA2.
 
 =head1 BUGS
 
-There are no known bugs, but you should keep a copy of your old image
+Sparse files become non-sparse in the new disk image.  This may cause
+the file to not fit.
+
+There are no other known bugs, but you should keep a copy of your old image
 file until you're sure the optimized image file works properly.
 
 =head1 AUTHOR

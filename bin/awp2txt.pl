@@ -14,6 +14,8 @@
 # Convert AppleWorks word processor files to text files
 #---------------------------------------------------------------------
 
+our $VERSION = '0.005';
+
 foreach $filename (@ARGV) {
     die "$filename: not a normal file" unless -f $filename;
     if (-e "$filename.txt") {

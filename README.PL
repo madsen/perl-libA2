@@ -20,6 +20,8 @@ die unless defined $version;
 
 # Generate README:
 
+print "Generating README...\n";
+
 open(STDOUT,'>README') or die;
 binmode STDOUT;
 
@@ -159,13 +161,6 @@ LICENSE
 	for more details.
 
 BUGS
-    If you use Unix or a similar operating system
-	The utilities don't have the executable attribute set.  Sorry,
-	but I use OS/2 and can't figure out how to create tar archives
-	with the executable bit set.  Please change into the `bin'
-	directory and type `chmod a+x *.pl'.  If you know of a better
-	way of fixing this, please let me know.
-
     Documentation
 	There isn't enough.  Yet.  If you'd like to read it, send
 	email.  If I think people want to read it, I'm far more likely
@@ -199,7 +194,7 @@ sub list_mod
     my $version;
     open(PL,"<lib/$file") or die "Can't open lib/$file";
     while (<PL>) {
-        $version = $1, last if /^\# Version: ([0-9.]+)/;
+        $version = $1, last if /^\s*\$VERSION = '([0-9.]+)'/;
     }
     close PL;
     die "No version for $file" unless $version;
@@ -217,7 +212,7 @@ sub list_util
     my $version;
     open(PL,"<bin/$file") or die "Can't open bin/$file";
     while (<PL>) {
-        $version = $1, last if /^\# $file ([0-9.]+)/i;
+        $version = $1, last if /^our \$VERSION = '([0-9.]+)'/;
     }
     close PL;
     die "No version for $file" unless $version;

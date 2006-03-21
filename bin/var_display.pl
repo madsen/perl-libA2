@@ -1,4 +1,4 @@
-#!perl
+#! /usr/bin/perl
 #---------------------------------------------------------------------
 # $Id$
 # Copyright 1996 Christopher J. Madsen
@@ -15,6 +15,8 @@
 #
 # See January 1986 Nibble (Vol 7/No 1), p.76 for more about VAR files
 #---------------------------------------------------------------------
+
+our $VERSION = '1.004';
 
 *ARG = *_;
 use strict;
@@ -158,7 +160,7 @@ it.  If you do, send email!
 
 =head1 AUTHOR
 
-Christopher J. Madsen E<lt>F<ac608@yfn.ysu.edu>E<gt>
+Christopher J. Madsen E<lt>F<cjm@pobox.com>E<gt>
 
 =cut
 
