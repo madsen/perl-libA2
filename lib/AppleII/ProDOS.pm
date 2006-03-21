@@ -476,7 +476,7 @@ sub new
         push @blocks, $startBlock++;
     } while ($diskSize -= 0x1000) > 0;
 
-    $self->mark([ 0 .. @blocks[-1] ], 0); # Mark initial blocks as used
+    $self->mark([ 0 .. $blocks[-1] ], 0); # Mark initial blocks as used
 
     $self->{bitmap} =
         $disk->pad_block($self->{bitmap},"\0",($#blocks+1) * 0x200);
@@ -1344,7 +1344,7 @@ sub allocate_space
 
     my $storage = $self->{storage};
 
-    $self->{block} = @blocks[0];
+    $self->{block} = $blocks[0];
 
     shift @blocks if $storage > 1; # Remove index block from list
 
