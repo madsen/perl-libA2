@@ -1,5 +1,5 @@
 # Before `./Build install' is performed this script should be runnable with
-# `./Build test'. After `./Build install' it should work as `perl ProDOS.t'
+# `./Build test'. After `./Build install' it should work as `perl 20_ProDOS.t'
 #---------------------------------------------------------------------
 # $Id$
 # Copyright 2006 Christopher J. Madsen
