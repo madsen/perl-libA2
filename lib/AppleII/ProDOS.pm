@@ -479,7 +479,7 @@ sub new
     $self->mark([ 0 .. $blocks[-1] ], 0); # Mark initial blocks as used
 
     $self->{bitmap} =
-        $disk->pad_block($self->{bitmap},"\0",($#blocks+1) * 0x200);
+        AppleII::Disk::pad_block($self->{bitmap},"\0",($#blocks+1) * 0x200);
     $self->{blocks} = \@blocks;
     $self->{free} = unpack('%32b*', $self->{bitmap});
 
@@ -1513,7 +1513,7 @@ sub write_disk
     $dataHi =~ s/[\s\S]([\s\S])/$1/g; # Keep just the high byte
 
     $disk->write_block($self->{block},
-                       $disk->pad_block($dataLo,"\0",0x100) . $dataHi,
+                       AppleII::Disk::pad_block($dataLo,"\0",0x100) . $dataHi,
                        "\0");
 } # end AppleII::ProDOS::Index::write_disk
 

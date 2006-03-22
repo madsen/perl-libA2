@@ -90,6 +90,8 @@ sub new
 #---------------------------------------------------------------------
 # Pad a block of data:
 #
+# This is a normal subroutine, NOT a method!
+#
 # Input:
 #   data:    The block to be padded
 #   pad:     The character to pad with (default "\0") or '' for no padding
@@ -102,7 +104,7 @@ sub new
 
 sub pad_block
 {
-    my ($self, $data, $pad, $length) = @_;
+    my ($data, $pad, $length) = @_;
 
     $pad    = "\0" unless defined $pad;
     $length = $length || 0x200;
@@ -305,7 +307,7 @@ sub write_block
     my ($self, $block, $data, $pad) = @_;
     croak("Disk image is read/only") unless $self->{writable};
 
-    $data = $self->pad_block($data, $pad || '');
+    $data = AppleII::Disk::pad_block($data, $pad || '');
 
     my $pos = $self->seek_block($block);
     print {$self->{file}} $data or die;
@@ -405,7 +407,7 @@ sub write_sector
     my ($self, $track, $sector, $data, $pad) = @_;
     croak("Disk image is read/only") unless $self->{writable};
 
-    $data = $self->pad_block($data, $pad || '', 0x100);
+    $data = AppleII::Disk::pad_block($data, $pad || '', 0x100);
 
     my $pos = $self->seek_sector($track, $sector);
     print {$self->{file}} $data or die;
@@ -424,7 +426,7 @@ sub write_block
     croak("Disk image is read/only") unless $self->{writable};
     my ($track, $sector1, $sector2) = block2sector($block);
 
-    $data = $self->pad_block($data, $pad || '');
+    $data = AppleII::Disk::pad_block($data, $pad || '');
 
     $self->write_sector($track, $sector1, substr($data,0,0x100));
     $self->write_sector($track, $sector2, substr($data,0x100,0x100));
@@ -537,7 +539,7 @@ sector with (out to 256 bytes).  If C<$pad> is omitted or null, then
 C<$contents> must be exactly 256 bytes.  This is currently implemented
 only for DOS 3.3 order images.
 
-=item $padded = AppleII::Disk->pad_block($data, [$pad, [$length]])
+=item $padded = AppleII::Disk::pad_block($data, [$pad, [$length]])
 
 Pads C<$data> out to C<$length> bytes with C<$pad>.  Returns the
 padded string; the original is not altered.  Dies if C<$data> is
@@ -548,8 +550,9 @@ If C<$pad> is the null string (not undef), just checks to make sure
 that C<$data> is exactly C<$length> bytes and returns the original
 string.  Dies if C<$data> is not exactly C<$length> bytes.
 
-C<pad_block> can be called either as C<AppleII::Disk-E<gt>pad_block>
-or C<$disk-E<gt>pad_block>.
+C<pad_block> is a subroutine, not a method, and is not exported.  You
+probably don't need to call it directly anyway, because the
+C<write_XXX> methods will call it for you.
 
 =back
 
