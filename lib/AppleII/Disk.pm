@@ -24,6 +24,8 @@ use IO::File;
 use strict;
 use vars qw($VERSION);
 
+use bytes;
+
 #=====================================================================
 # Package Global Variables:
 
@@ -110,7 +112,7 @@ sub pad_block
     $length = $length || 0x200;
 
     $data .= $pad x ($length - length($data))
-        if (defined $pad and length($data) < $length);
+        if (length($pad) and length($data) < $length);
 
     unless (length($data) == $length) {
         local $Carp::CarpLevel = $Carp::CarpLevel;
@@ -143,6 +145,23 @@ sub blocks
 
     int($self->{maxlen} / 0x200);
 } # end AppleII::Disk::blocks
+
+#---------------------------------------------------------------------
+# Extend the image file to its full size:
+
+sub fully_allocate
+{
+  my $self = shift;
+
+  if ($self->{maxlen} > $self->{actlen}) {
+    croak("Disk image is read/only") unless $self->{writable};
+
+    $self->{file}->truncate($self->{maxlen}) or croak "Can't extend file: $!";
+
+    $self->{actlen} = $self->{maxlen};
+  } # end if file is not already at maximum size
+
+} # end AppleII::Disk::fully_allocate
 
 #---------------------------------------------------------------------
 # Read a ProDOS block:
@@ -248,7 +267,7 @@ package AppleII::Disk::ProDOS;
 #---------------------------------------------------------------------
 
 use Carp;
-use IO::File;
+use bytes;
 use integer;
 use strict;
 use vars qw(@ISA);
@@ -324,7 +343,7 @@ package AppleII::Disk::DOS33;
 #$debug = 1;
 
 use Carp;
-use IO::File;
+use bytes;
 use integer;
 use strict;
 use vars qw(@ISA);
