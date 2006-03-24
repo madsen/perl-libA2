@@ -1,7 +1,7 @@
 #---------------------------------------------------------------------
 package AppleII::ProDOS;
 #
-# Copyright 1996 Christopher J. Madsen
+# Copyright 1996-2006 Christopher J. Madsen
 #
 # Author: Christopher J. Madsen <cjm@pobox.com>
 # Created: 26 Jul 1996
