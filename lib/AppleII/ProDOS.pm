@@ -22,6 +22,7 @@ require 5.000;
 use AppleII::Disk 0.04;
 use Carp;
 use POSIX 'mktime';
+use bytes;
 use strict;
 use vars qw(@ISA @EXPORT @EXPORT_OK $VERSION $AUTOLOAD);
 
@@ -434,6 +435,7 @@ package AppleII::ProDOS::Bitmap;
 #---------------------------------------------------------------------
 
 use Carp;
+use bytes;
 use strict;
 use vars '@ISA';
 
@@ -650,6 +652,7 @@ package AppleII::ProDOS::Directory;
 AppleII::ProDOS->import(qw(a2_croak pack_date pack_name parse_name
                            short_date valid_date valid_name));
 use Carp;
+use bytes;
 use strict;
 use vars '@ISA';
 
@@ -1119,6 +1122,7 @@ package AppleII::ProDOS::DirEntry;
 AppleII::ProDOS->import(qw(pack_date pack_name parse_name parse_type
                            valid_date valid_name));
 use integer;
+use bytes;
 use strict;
 use vars '@ISA';
 
@@ -1212,6 +1216,8 @@ package AppleII::ProDOS::File;
 
 AppleII::ProDOS->import(qw(a2_croak valid_date valid_name));
 use Carp;
+use bytes;
+use strict;
 use vars qw(@ISA);
 
 @ISA = 'AppleII::ProDOS::DirEntry';
@@ -1367,7 +1373,7 @@ sub as_text
 {
     my $self = shift;
     my $data = $self->{data};
-    $data =~ tr/\r\x8D\x80-\xFF/\n\n\x00-\x7F/;
+    $data =~ tr/\x0D\x8D\x80-\xFF/\n\n\x00-\x7F/;
     $data;
 } # end AppleII::ProDOS::File::as_text
 
@@ -1424,6 +1430,7 @@ package AppleII::ProDOS::Index;
 #---------------------------------------------------------------------
 
 use integer;
+use bytes;
 use strict;
 use vars '@ISA';
 
