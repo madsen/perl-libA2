@@ -22,11 +22,29 @@ my $build = A2_Build->new(
     'Getopt::Long'     => '2.10',
     'IO::File'         => 0 },
   build_requires     => { FindBin => 0, 'Module::Build' => 0 },
-  script_files       => [ glob "$FindBin::Bin/bin/*.pl" ],
+  dynamic_config     => 1,      # We have the --no-scripts option
+  get_options        => { 'no-scripts' => undef },
   add_to_cleanup     => [ 't/tmpdir' ],
   create_makefile_pl => 'passthrough',
 );
+
+my @scripts = grep { not /~$/ } glob "$FindBin::Bin/bin/*"
+    unless $build->args('no-scripts');
+
+$build->script_files([ @scripts ]) if @scripts;
+
 $build->create_build_script;
+
+if (@scripts) {
+  print "The following scripts will be installed along with the modules:\n";
+  foreach (@scripts) {
+    s!^.*/!!;
+    print "  $_\n";
+  }
+  print "Run 'perl Build.PL --no-scripts' if you don't want these scripts installed\n";
+} else {
+  print "No scripts will be installed (installing modules only)\n";
+}
 
 # Local Variables:
 #   tmtrack-file-task: "LibA2: Build.PL"

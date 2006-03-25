@@ -52,9 +52,9 @@ EOT
 
 print 'The included utilities are:';
 
-list_util('prodos.pl');
+list_util('prodos');
 print <<'EOT';
-	`prodos.pl' is the main end-user utility.  It provides a
+	`prodos' is the main end-user utility.  It provides a
 	Unix-style shell for accessing ProDOS volumes.  This allows
 	you to list the contents of disk images, create
 	subdirectories, and copy files to & from disk images.  If you
@@ -62,43 +62,43 @@ print <<'EOT';
 	the shell will have better editing, command & filename
 	completion, and a command history.
 
-	The parameters for prodos.pl are:
+	The parameters for prodos are:
 		prodos IMAGE_FILE
 EOT
 #`
-list_util('pro_fmt.pl');
+list_util('pro_fmt');
 print <<'';
-	`pro_fmt.pl' creates blank ProDOS disk images.  The images are
+	`pro_fmt' creates blank ProDOS disk images.  The images are
 	NOT bootable, because they lack the necessary code in the boot
 	blocks.  You can copy blocks 0 and 1 from a bootable disk to
-	fix this.  The parameters for pro_fmt.pl are:
+	fix this.  The parameters for pro_fmt are:
 		pro_fmt VOLUME_NAME  SIZE_IN_BLOCKS  IMAGE_FILE
 	This is likely to change in the future.
 
 #`
-list_util('pro_opt.pl');
+list_util('pro_opt');
 print <<'';
-	`pro_opt.pl' removes unused space from ProDOS disk images.  This
+	`pro_opt' removes unused space from ProDOS disk images.  This
 	is most useful for reducing the size of hard disk images.  It
 	doesn't use any form of compression; it simply moves
 	everything to the beginning of the disk, squashing out empty
 	space caused by deleting files.  Be careful with this, as it's
-	likely to have some bugs left.  The parameters for pro_opt.pl are:
+	likely to have some bugs left.  The parameters for pro_opt are:
 		pro_opt SOURCE_IMAGE_FILE  DESTINATION_IMAGE_FILE
 
 #`
-list_util('awp2txt.pl');
+list_util('awp2txt');
 print <<'';
-	`awp2txt.pl' converts AppleWorks word processor files into text
+	`awp2txt' converts AppleWorks word processor files into text
 	files.  This is a bit out of place in LibA2, because it has
 	nothing to do with disk images, but I included it because
 	users of LibA2 may find it useful.  The parameters for awp2txt are:
 		awp2txt FILE ...
 
 #`
-list_util('var_display.pl');
+list_util('var_display');
 print <<'';
-	`var_display.pl' lists the contents of an Applesoft BASIC VAR file.
+	`var_display' lists the contents of an Applesoft BASIC VAR file.
 	Currently, it can only display string variables and string arrays.
 	Like awp2txt, you must first extract the VAR file from the disk
 	image.  The parameters for var_display are:
@@ -130,7 +130,7 @@ print <<'';
 list_mod('AppleII/ProDOS.pm');
 print <<'';
 	`AppleII::ProDOS' provides tools for accessing files on ProDOS
-	disk images.  `prodos.pl' is basically just a wrapper around
+	disk images.  `prodos' is basically just a wrapper around
 	AppleII::ProDOS.
 
 #'
@@ -166,13 +166,13 @@ BUGS
 	email.  If I think people want to read it, I'm far more likely
 	to write it. :-)  Until then, use the source, Luke.
 
-    prodos.pl
+    prodos
 	There's no way to copy a file from a disk image under another
 	name.  This may cause problems under MS-DOS when extracting
 	files that don't meet its 8.3 filename limitations.
-	Solution: Upgrade to OS/2 and use HPFS. :-)
+	Solution: Upgrade to a real operating system.
 
-    pro_fmt.pl
+    pro_fmt
 	The disk images it creates aren't bootable unless you copy the
 	boot blocks from a bootable disk.
 

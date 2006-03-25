@@ -16,3 +16,4 @@
 ^LibA2-\d
 ^_build\b
 ^Build$
+\btmpdir/
