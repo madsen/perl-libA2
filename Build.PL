@@ -17,8 +17,13 @@ my $build = A2_Build->new(
   dist_author        => 'Christopher J. Madsen <cjm@pobox.com>',
   dist_abstract      => 'Apple II emulator & file utilities',
   license            => 'perl',
-  requires           => { perl => '5.6.0' },
+  requires           => {
+    perl               => '5.6.0',
+    'Getopt::Long'     => '2.10',
+    'IO::File'         => 0 },
+  build_requires     => { FindBin => 0, 'Module::Build' => 0 },
   script_files       => [ glob "$FindBin::Bin/bin/*.pl" ],
+  add_to_cleanup     => [ 't/tmpdir' ],
   create_makefile_pl => 'passthrough',
 );
 $build->create_build_script;
