@@ -88,7 +88,7 @@ B<awp2txt> FILE [FILE ...]
 =head1 DESCRIPTION
 
 B<awp2txt> converts AppleWorks word processor files to plain text
-file.  For each FILE specified on the command line, it writes the
+files.  For each FILE specified on the command line, it writes the
 contents to FILE.txt.  The original files are not changed.  If
 FILE.txt already exists, it is I<not> overwritten.
 
