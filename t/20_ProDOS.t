@@ -18,7 +18,7 @@
 use FindBin;
 
 use strict;
-use Test::More tests => 17;
+use Test::More tests => 33;
 BEGIN { use_ok('AppleII::ProDOS') };
 
 #---------------------------------------------------------------------
@@ -71,7 +71,7 @@ expand('../testdisk.cmp', 'testdisk.PO');
 #---------------------------------------------------------------------
 # Tests begin here:
 
-my $vol = AppleII::ProDOS->open("testdisk.PO");
+my $vol = AppleII::ProDOS->open("testdisk.PO", 'rw');
 isa_ok($vol, 'AppleII::ProDOS', '$vol');
 
 is($vol->name, 'TESTDISK', 'Volume /TESTDISK');
@@ -90,16 +90,19 @@ SPARSE.SAPLING  TXT     3  23-Mar-06 19:47 23-Mar-06 11:34    65032  $0000
 SUBDIR          DIR     1  24-Mar-06 15:36 23-Mar-06 19:48      512  $0000
 Blocks free: 260     Blocks used: 20     Total blocks: 280
 
-my $file = $vol->get_file('SEEDLING');
-isa_ok($file, 'AppleII::ProDOS::File', 'SEEDLING $file');
+sub test_files_in_root {
+  my $file = $vol->get_file('SEEDLING');
+  isa_ok($file, 'AppleII::ProDOS::File', 'SEEDLING $file');
 
-is($file->as_text, "Hello\n", '$file says Hello');
+  is($file->as_text, "Hello\n", '$file says Hello');
 
-$file = $vol->get_file('SPARSE.SAPLING');
-isa_ok($file, 'AppleII::ProDOS::File', 'SPARSE.SAPLING $file');
+  $file = $vol->get_file('SPARSE.SAPLING');
+  isa_ok($file, 'AppleII::ProDOS::File', 'SPARSE.SAPLING $file');
 
-is($file->as_text, "Hello," . ("\0" x 0xFDFA) . "World!\n\0",
-   'SPARSE.SAPLING says Hello, World!');
+  is($file->as_text, "Hello," . ("\0" x 0xFDFA) . "World!\n\0",
+     'SPARSE.SAPLING says Hello, World!');
+} # end test_files_in_root
+test_files_in_root();
 
 is($vol->path('SUBDIR'), '/TESTDISK/SUBDIR/', 'cd SUBDIR');
 
@@ -109,20 +112,63 @@ SAPLING         TXT     3  23-Mar-06 19:52 23-Mar-06 19:50      531  $0000
 SPARSE.TREE     BIN     5  24-Mar-06 15:36 24-Mar-06 15:35   131106  $1000
 Blocks free: 260     Blocks used: 20     Total blocks: 280
 
-$file = $vol->get_file('SAPLING');
-isa_ok($file, 'AppleII::ProDOS::File', 'SAPLING $file');
+sub test_files_in_subdir
+{
+  my $file = $vol->get_file('SAPLING');
+  isa_ok($file, 'AppleII::ProDOS::File', 'SAPLING $file');
 
-is($file->as_text,
-   "This is a sapling file.\n" . ("\0" x 488) . "This is block two.\n",
-   'SAPLING $file contents');
+  is($file->as_text,
+     "This is a sapling file.\n" . ("\0" x 488) . "This is block two.\n",
+     'SAPLING $file contents');
 
-$file = $vol->get_file('SPARSE.TREE');
-isa_ok($file, 'AppleII::ProDOS::File', 'SPARSE.TREE $file');
+  $file = $vol->get_file('SPARSE.TREE');
+  isa_ok($file, 'AppleII::ProDOS::File', 'SPARSE.TREE $file');
 
-is($file->as_text,
-   "This is a sparse tree file.\n" . ("\0" x 0x1FFE4)
-   . "This is the end of the tree file.\n",
-   'SPARSE.TREE $file contents');
+  is($file->as_text,
+     "This is a sparse tree file.\n" . ("\0" x 0x1FFE4)
+     . "This is the end of the tree file.\n",
+     'SPARSE.TREE $file contents');
+} # end test_files_in_subdir
+test_files_in_subdir();
+
+#---------------------------------------------------------------------
+# Now try some write tests:
+
+my $contents = "Hello, World!\x0D" x 256;
+
+my $file = AppleII::ProDOS::File->new('Sample.File', $contents);
+isa_ok($file, 'AppleII::ProDOS::File', 'Sample.File $file');
+
+eval { $vol->put_file($file); };
+is($@, '', "Wrote Sample.File");
+
+is($vol->catalog, <<'', 'Catalog /TESTDISK/SUBDIR after write');
+Name           Type Blocks  Modified        Created            Size Subtype
+SAPLING         TXT     3  23-Mar-06 19:52 23-Mar-06 19:50      531  $0000
+SPARSE.TREE     BIN     5  24-Mar-06 15:36 24-Mar-06 15:35   131106  $1000
+SAMPLE.FILE     NON     8  <No Date>       <No Date>           3584  $0000
+Blocks free: 252     Blocks used: 28     Total blocks: 280
+
+undef $file;
+
+$file = $vol->get_file('SAMPLE.FILE');
+isa_ok($file, 'AppleII::ProDOS::File', 'Read Sample.File');
+
+is($file->data, $contents, 'SAMPLE.FILE contents');
+
+$contents =~ s/\x0D/\n/g;
+is($file->as_text, $contents, 'SAMPLE.FILE as_text');
+
+#---------------------------------------------------------------------
+# Finally, try the read tests again:
+
+is($vol->path('/TESTDISK'), '/TESTDISK/', 'cd /');
+
+test_files_in_root();
+
+is($vol->path('SUBDIR'), '/TESTDISK/SUBDIR/', 'cd SUBDIR again');
+
+test_files_in_subdir();
 
 #---------------------------------------------------------------------
 # Local Variables:
