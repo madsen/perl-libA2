@@ -28,7 +28,7 @@ my $build = A2_Build->new(
   create_makefile_pl => 'passthrough',
 );
 
-my @scripts = grep { not /~$/ } glob "$FindBin::Bin/bin/*"
+my @scripts = sort grep { not /~$/ } glob "$FindBin::Bin/bin/*"
     unless $build->args('no-scripts');
 
 $build->script_files([ @scripts ]) if @scripts;
@@ -37,10 +37,7 @@ $build->create_build_script;
 
 if (@scripts) {
   print "The following scripts will be installed along with the modules:\n";
-  foreach (@scripts) {
-    s!^.*/!!;
-    print "  $_\n";
-  }
+  print join('   ', '', map { s!^.*/!!; $_ } @scripts) . "\n";
   print "Run 'perl Build.PL --no-scripts' if you don't want these scripts installed\n";
 } else {
   print "No scripts will be installed (installing modules only)\n";
