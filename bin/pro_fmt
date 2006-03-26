@@ -67,3 +67,57 @@ if (not $force and -e $filename) {
 my $vol = AppleII::ProDOS->new($volume, $blocks, $filename, $order);
 
 $vol->disk->fully_allocate if $extendToFullSize;
+
+__END__
+
+=head1 NAME
+
+pro_fmt - Create a blank Apple II ProDOS disk image file
+
+=head1 SYNOPSIS
+
+B<pro_fmt> [options] I<FILE>
+
+=head1 DESCRIPTION
+
+B<pro_fmt> creates blank ProDOS disk images.  The images are
+NOT bootable, because they lack the necessary code in the boot
+blocks.  You can copy blocks 0 and 1 from a bootable disk to
+fix this.
+
+Note that some emulators cannot deal with image files that are smaller
+than their nominal size.  That is, they expect a 280 block disk image
+file to be 143,360 bytes long.  Always use the "--extend" option when
+creating image files for such emulators.
+
+=head1 OPTIONS
+
+ -b, --blocks=SIZE  Make the image SIZE blocks (default 280)
+ -d, --dos-order    Make a DOS 3.3-order image file
+ -e, --extend       Extend FILE to its maximum size
+ -f, --force        Overwrite an existing file
+ -p, --prodos-order Make a ProDOS-order image file
+ -v, --volume=NAME  Use NAME for the ProDOS volume name (default NEWDISK)
+     --help         Display this help message
+     --version      Display version information
+
+=head1 REQUIREMENTS
+
+B<pro_fmt> requires the modules AppleII::ProDOS and AppleII::Disk,
+which are included with LibA2.
+
+=head1 BUGS
+
+The images are not bootable, because they lack the necessary code in
+the boot blocks.  You can copy blocks 0 and 1 from a bootable disk to
+fix this.
+
+=head1 AUTHOR
+
+Christopher J. Madsen E<lt>F<cjm@pobox.com>E<gt>
+
+=cut
+
+# Local Variables:
+# tmtrack-file-task: "LibA2: pro_fmt.pl"
+# End:
