@@ -111,6 +111,7 @@ sub new
     my ($type, $name, $diskSize, $filename, $mode) = @_;
 
     a2_croak("Invalid name `$name'") unless valid_name($name);
+    $name = uc $name;
 
     my $disk = AppleII::Disk->new($filename, ($mode || '') . 'rw');
     $disk->blocks($diskSize);
@@ -268,7 +269,7 @@ sub a2_croak
 sub pack_date
 {
     my ($minute,$hour,$day,$month,$year) = (localtime($_[0]))[1..5];
-    pack('vC2', ($year<<9) + (($month+1)<<5) + $day, $minute, $hour);
+    pack('vC2', (($year%100)<<9) + (($month+1)<<5) + $day, $minute, $hour);
 } # end AppleII::ProDOS::pack_date
 
 #---------------------------------------------------------------------
@@ -691,7 +692,7 @@ sub new
         blocks  => $blocks,
         disk    => $disk,
         entries => [],
-        name    => $name,
+        name    => uc $name,
         version => "\0\0",
         created => pack_date(time),
         _permitted => \%dir_fields,
@@ -909,6 +910,7 @@ sub new_dir
     my ($self, $dir, $size) = @_;
 
     a2_croak("Invalid name `$dir'") unless valid_name($dir);
+    $dir = uc $dir;
 
     $size = 1 unless $size;
     $size = int(($size + 0xD) / 0xD); # Compute # of blocks (+ dir header)
@@ -1245,13 +1247,14 @@ sub new
 {
     my ($type, $name, $data) = @_;
     a2_croak("Invalid name `$name'") unless valid_name($name);
+
     my $self = {
         access     => 0xE3,
         auxtype    => 0,
         created    => "\0\0\0\0",
         data       => $data,
         modified   => "\0\0\0\0",
-        name       => $name,
+        name       => uc $name,
         size       => length($data),
         type       => 0,
         version    => "\0\0",
