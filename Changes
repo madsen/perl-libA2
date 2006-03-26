@@ -1,3 +1,32 @@
+* LibA2 0.04 beta (March 26, 2006)
+
+  Now uses Module::Build instead of ExtUtils::MakeMaker
+  You can use --no-scripts with Build.PL to avoid installing utility scripts
+  Now has tests for AppleII::Disk & AppleII::ProDOS
+  Removed the .pl extension from utility scripts
+
+  Updated utilities:
+    prodos   		version 0.04
+      Fixed to work with current Term::ReadLine::Perl
+      Added md as an alias for mkdir
+
+    pro_fmt   		version 0.04
+      Now has command line options (try --help for a list)
+
+    pro_opt   		version 0.04
+      Updated documentation
+
+  Updated modules:
+    AppleII::Disk	version 0.04
+      INCOMPATIBLE CHANGE:  pad_block is now just a subroutine, not a method
+      Uses IO::File instead of FileHandle
+      The read_blocks method now treats block 0 specially
+
+    AppleII::ProDOS	version 0.04
+      Can now read sparse files correctly
+      Fixed some places where filenames weren't being uppercased
+      Fixed a Y2K issue in converting timestamps to ProDOS format
+
 * LibA2 0.003 beta (February 26, 1997)
 
   First beta release of LibA2
