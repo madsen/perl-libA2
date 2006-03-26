@@ -14,6 +14,7 @@
 # Create a blank ProDOS disk image
 #---------------------------------------------------------------------
 
+use AppleII::Disk 0.04;
 use AppleII::ProDOS 0.04;
 use Getopt::Long 2.10;
 use strict;
@@ -24,10 +25,11 @@ our $VERSION = '0.04';
 my $blocks = 280;
 my $volume = 'NEWDISK';
 my $order  = '';
-my ($extendToFullSize, $force);
+my ($bootFrom, $extendToFullSize, $force);
 
 Getopt::Long::config(qw(bundling no_getopt_compat));
 GetOptions(
+    'boot-from|b=s'   => \$bootFrom,
     'size|s=i'        => \$blocks,
     'dos-order|d'     => sub { $order = 'd' },
     'extend|e'        => \$extendToFullSize,
@@ -46,14 +48,15 @@ sub usage {
     exit if $_[0] and $_[0] eq 'version';
     print "\n" . <<'';
 Usage:  pro_fmt [options] FILE
-  -e, --extend       Extend FILE to its maximum size
-  -f, --force        Overwrite an existing file
-  -d, --dos-order    Make a DOS 3.3-order image file
-  -p, --prodos-order Make a ProDOS-order image file
-  -s, --size=BLOCKS  Make the image BLOCKS blocks in size (default 280)
-  -v, --volume=NAME  Use NAME for the ProDOS volume name (default NEWDISK)
-      --help         Display this help message
-      --version      Display version information
+  -b, --boot-from=FILE  Copy boot blocks from disk image FILE
+  -e, --extend          Extend FILE to its maximum size
+  -f, --force           Overwrite an existing file
+  -d, --dos-order       Make a DOS 3.3-order image file
+  -p, --prodos-order    Make a ProDOS-order image file
+  -s, --size=BLOCKS     Make the image BLOCKS blocks in size (default 280)
+  -v, --volume=NAME     Use NAME for the ProDOS volume name (default NEWDISK)
+      --help            Display this help message
+      --version         Display version information
 
     exit;
 } # end usage
@@ -68,6 +71,18 @@ my $vol = AppleII::ProDOS->new($volume, $blocks, $filename, $order);
 
 $vol->disk->fully_allocate if $extendToFullSize;
 
+if ($bootFrom) {
+  my $boot = eval { AppleII::Disk->new($bootFrom, 'r') };
+  if ($@) {
+    my $err = $@;
+    $err =~ s! at \Q$0\E line \d+\n!!;
+    die "$err\nDisk image $filename is not bootable, but is otherwise ok.\n";
+  }
+
+  $vol->disk->write_block(0, $boot->read_block(0));
+  $vol->disk->write_block(1, $boot->read_block(1));
+} # end if $bootFrom
+
 __END__
 
 =head1 NAME
@@ -80,10 +95,10 @@ B<pro_fmt> [options] I<FILE>
 
 =head1 DESCRIPTION
 
-B<pro_fmt> creates blank ProDOS disk images.  The images are
-NOT bootable, because they lack the necessary code in the boot
-blocks.  You can copy blocks 0 and 1 from a bootable disk to
-fix this.
+B<pro_fmt> creates blank ProDOS disk images.  The images are NOT
+bootable, because they lack the necessary code in the boot blocks,
+unless you use the "--boot-from" option to copy the boot blocks from a
+bootable disk image.
 
 Note that some emulators cannot deal with image files that are smaller
 than their nominal size.  That is, they expect a 280 block disk image
@@ -92,25 +107,22 @@ creating image files for such emulators.
 
 =head1 OPTIONS
 
- -e, --extend       Extend FILE to its maximum size
- -f, --force        Overwrite an existing file
- -d, --dos-order    Make a DOS 3.3-order image file
- -p, --prodos-order Make a ProDOS-order image file
- -s, --size=BLOCKS  Make the image BLOCKS blocks in size (default 280)
- -v, --volume=NAME  Use NAME for the ProDOS volume name (default NEWDISK)
-     --help         Display this help message
-     --version      Display version information
+ -b, --boot-from=FILE  Copy boot blocks from disk image FILE
+ -e, --extend          Extend FILE to its maximum size
+ -f, --force           Overwrite an existing file
+ -d, --dos-order       Make a DOS 3.3-order image file
+ -p, --prodos-order    Make a ProDOS-order image file
+ -s, --size=BLOCKS     Make the image BLOCKS blocks in size
+                         (default 280)
+ -v, --volume=NAME     Use NAME for the ProDOS volume name
+                         (default NEWDISK)
+     --help            Display this help message
+     --version         Display version information
 
 =head1 REQUIREMENTS
 
 B<pro_fmt> requires the modules AppleII::ProDOS and AppleII::Disk,
 which are included with LibA2.
-
-=head1 BUGS
-
-The images are not bootable, because they lack the necessary code in
-the boot blocks.  You can copy blocks 0 and 1 from a bootable disk to
-fix this.
 
 =head1 AUTHOR
 
