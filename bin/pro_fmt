@@ -28,7 +28,7 @@ my ($extendToFullSize, $force);
 
 Getopt::Long::config(qw(bundling no_getopt_compat));
 GetOptions(
-    'blocks|b=i'      => \$blocks,
+    'size|s=i'        => \$blocks,
     'dos-order|d'     => sub { $order = 'd' },
     'extend|e'        => \$extendToFullSize,
     'force|f'         => \$force,
@@ -46,11 +46,11 @@ sub usage {
     exit if $_[0] and $_[0] eq 'version';
     print "\n" . <<'';
 Usage:  pro_fmt [options] FILE
-  -b, --blocks=SIZE  Make the image SIZE blocks (default 280)
-  -d, --dos-order    Make a DOS 3.3-order image file
   -e, --extend       Extend FILE to its maximum size
   -f, --force        Overwrite an existing file
+  -d, --dos-order    Make a DOS 3.3-order image file
   -p, --prodos-order Make a ProDOS-order image file
+  -s, --size=BLOCKS  Make the image BLOCKS blocks in size (default 280)
   -v, --volume=NAME  Use NAME for the ProDOS volume name (default NEWDISK)
       --help         Display this help message
       --version      Display version information
@@ -92,11 +92,11 @@ creating image files for such emulators.
 
 =head1 OPTIONS
 
- -b, --blocks=SIZE  Make the image SIZE blocks (default 280)
- -d, --dos-order    Make a DOS 3.3-order image file
  -e, --extend       Extend FILE to its maximum size
  -f, --force        Overwrite an existing file
+ -d, --dos-order    Make a DOS 3.3-order image file
  -p, --prodos-order Make a ProDOS-order image file
+ -s, --size=BLOCKS  Make the image BLOCKS blocks in size (default 280)
  -v, --volume=NAME  Use NAME for the ProDOS volume name (default NEWDISK)
      --help         Display this help message
      --version      Display version information
