@@ -70,10 +70,9 @@ list_util('pro_fmt');
 print <<'';
 	`pro_fmt' creates blank ProDOS disk images.  The images are
 	NOT bootable, because they lack the necessary code in the boot
-	blocks.  You can copy blocks 0 and 1 from a bootable disk to
+	blocks.  You can copy blocks from a bootable disk image to
 	fix this.  The parameters for pro_fmt are:
-		pro_fmt VOLUME_NAME  SIZE_IN_BLOCKS  IMAGE_FILE
-	This is likely to change in the future.
+		pro_fmt [options] IMAGE_FILE
 
 #`
 list_util('pro_opt');
