@@ -1669,7 +1669,7 @@ Gets or sets the current path.  C<$newpath> is the new pathname, which
 may be either relative or absolute.  `..' may be used to specify the
 parent directory, but this must occur at the beginning of the path
 (`../../dir' is valid, but `../dir/..' is not).
-If c<$newpath>> is omitted, then the current path is not changed.
+If C<$newpath> is omitted, then the current path is not changed.
 Returns the current path as a string beginning and ending with C</>.
 
 =item $catalog = $vol->catalog
@@ -1901,6 +1901,8 @@ somebody writes me, I'm more likely to finish.  (That's a hint, folks.)
 
 Mixed case filenames (ala GS/OS) are not supported.  All filenames are
 converted to upper case.
+
+=back
 
 =head1 AUTHOR
 

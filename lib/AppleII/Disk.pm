@@ -31,7 +31,7 @@ use bytes;
 
 BEGIN
 {
-  $VERSION = '0.04';
+  $VERSION = '0.05';
 } # end BEGIN
 
 #=====================================================================
@@ -74,7 +74,7 @@ sub new
     } # end if writable
 
     $file->open($filename, $openMode) or croak("Couldn't open `$filename': $!");
-    $file->binmode;
+    binmode $file; # binmode didn't become a method until IO::File 1.11
 
     $self->{file}   = $file;
     $self->{actlen} = ($file->stat)[7]; # Get real size of file
