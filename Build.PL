@@ -13,7 +13,7 @@ use A2_Build;          # Our customized version of Module::Build
 
 my $build = A2_Build->new(
   dist_name          => 'LibA2',
-  dist_version       => '0.05',
+  dist_version       => '0.06',
   dist_author        => 'Christopher J. Madsen <cjm@pobox.com>',
   dist_abstract      => 'Apple II emulator & file utilities',
   license            => 'perl',

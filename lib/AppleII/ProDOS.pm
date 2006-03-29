@@ -19,7 +19,7 @@ package AppleII::ProDOS;
 #---------------------------------------------------------------------
 
 require 5.000;
-use AppleII::Disk 0.04;
+use AppleII::Disk 0.06;
 use Carp;
 use POSIX 'mktime';
 use bytes;
@@ -54,7 +54,7 @@ my %dir_methods = (
 
 BEGIN
 {
-    $VERSION = '0.04';
+    $VERSION = '0.06';
 } # end BEGIN
 
 # Filetype list from About Apple II File Type Notes -- June 1992
@@ -1261,17 +1261,6 @@ sub new
         _permitted => \%fil_fields
     };
 
-    my $blksUsed = int((length($data) + 0x1FF) / 0x200);
-    $self->{storage} = 2;       # Assume sapling file
-    if ($blksUsed > 0x100) {
-        $self->{storage} = 3;   # Need extra index blocks for tree file
-        $blksUsed += $self->{indexBlocks} = int(($blksUsed + 0xFF) / 0x100);
-    }
-    if ($blksUsed > 1) { ++$blksUsed        } # Tree or sapling file
-    else             { $self->{storage} = 1 } # Seedling file
-
-    $self->{blksUsed} = $blksUsed;
-
     bless $self, $type;
 } # end AppleII::ProDOS::File::new
 
@@ -1338,32 +1327,86 @@ sub open
 #   bitmap:  The AppleII::ProDOS::Bitmap we should use
 #
 # Input Variables:
-#   indexBlocks:  The number of subindex blocks needed
+#   data:         The data we're trying to store
 #
 # Output Variables:
+#   blksUsed:     The number of blocks used by the file (including indexes)
 #   blocks:       The list of data blocks allocated
 #   indexBlocks:  The list of subindex blocks allocated
+#   storage:      The storage type of the file
 
 sub allocate_space
 {
-    my ($self, $bitmap) = @_;
+  my ($self, $bitmap) = @_;
 
-    my @blocks = $bitmap->get_blocks($self->{blksUsed})
-        or a2_croak("Not enough free space");
+  # Decide which storage type this file requires:
+  my $dataRef = \$self->{data};
 
-    my $storage = $self->{storage};
+  my @dataBlks = (1) x int((length($$dataRef) + 0x1FF) / 0x200);
+  my @subindexBlks;
+  my $storage;
 
-    $self->{block} = $blocks[0];
+  if (@dataBlks > 0x100) {
+    $storage      = 3;          # > 128KB = Tree
+    @subindexBlks = (1) x int((@dataBlks + 0xFF) / 0x100);
+  } elsif (@dataBlks > 1) {
+    $storage      = 2;          # 513 bytes - 128KB = Sapling
+  } else {
+    $storage      = 1;          # 0 - 512 bytes = Seedling
+    @dataBlks     = (1);        # Even empty files need one block
+  }
 
-    shift @blocks if $storage > 1; # Remove index block from list
+  # Calculate how many blocks the file will occupy:
+  my $blksUsed = scalar @dataBlks;
 
-    if ($storage == 3) {
-        $self->{indexBlocks} = [ splice @blocks, 0, $self->{indexBlocks} ];
-    }
+  if ($storage > 1) {
+    $blksUsed += 1 + @subindexBlks; # Add in the index blocks
 
-    croak("Unsupported storage type $storage") unless $storage < 4;
+    # Check to see if this file is sparse:
+    my $index = 0;
+    foreach (@dataBlks) {
+      unless (substr($$dataRef, $index, 0x200) =~ /[^\0]/) {
+        $_ = 0;         # This data block doesn't need to be allocated
+        --$blksUsed;
+      } # end unless this block contains data
+      $index += 0x200;          # 512 bytes per data block
+    } # end foreach data block
 
-    $self->{blocks} = \@blocks;
+    # For tree files, figure out which subindex blocks are needed:
+    if (@subindexBlks) {
+      my @blocks = @dataBlks;
+      foreach my $ib (@subindexBlks) {
+        unless (grep { $_ } splice @blocks, 0, 0x100) {
+          $ib = 0;  # This subindex block doesn't need to be allocated
+          --$blksUsed;
+        } # end unless this subindex block is required
+      } # end foreach subindex block
+    } # end if tree file
+  } # end if not seedling
+
+  $self->{storage}  = $storage;
+  $self->{blksUsed} = $blksUsed;
+
+  # Now allocate the blocks and record them:
+  my @blocks = $bitmap->get_blocks($blksUsed)
+      or a2_croak("Not enough free space");
+
+  $self->{block} = $blocks[0];
+
+  shift @blocks if $storage > 1; # Remove index block from list
+
+  foreach (@subindexBlks, @dataBlks) {
+    # If this block needs to be allocated, assign it one of our blocks:
+    $_ = shift @blocks if $_;
+  }
+
+  if ($storage == 3) {
+    $self->{indexBlocks} = \@subindexBlks;
+  } else {
+    delete $self->{indexBlocks}; # Just in case
+  }
+
+  $self->{blocks} = \@dataBlks;
 } # end AppleII::ProDOS::File::allocate_space
 
 #---------------------------------------------------------------------
@@ -1413,11 +1456,15 @@ sub write_disk
         my @blocks = @{$self->{blocks}};
         my $block;
         foreach $block (@{$self->{indexBlocks}}) {
+          if ($block) {
             $index = AppleII::ProDOS::Index->new($disk, $block,
                                                  [splice(@blocks,0,0x100)]);
             $index->write_disk;
-        }
-        $self->{indexBlocks} = $#{$self->{indexBlocks}};
+          } else {
+            splice(@blocks,0,0x100);
+          } # end else sparse index block is not actually allocated
+        } # end for each subindex block
+        $self->{indexBlocks} = scalar @{$self->{indexBlocks}};
     } # end elsif tree file
 
     delete $self->{blocks};
@@ -1510,7 +1557,7 @@ sub read_disk
 } # end AppleII::ProDOS::Index::read_disk
 
 #---------------------------------------------------------------------
-# Write bitmap to disk:
+# Write index block to disk:
 
 sub write_disk
 {
@@ -1519,8 +1566,8 @@ sub write_disk
 
     my ($dataLo, $dataHi);
     $dataLo = $dataHi = pack('v*',@{$self->{blocks}});
-    $dataLo =~ s/([\s\S])[\s\S]/$1/g; # Keep just the low byte
-    $dataHi =~ s/[\s\S]([\s\S])/$1/g; # Keep just the high byte
+    $dataLo =~ s/(.)./$1/gs;    # Keep just the low byte
+    $dataHi =~ s/.(.)/$1/gs;    # Keep just the high byte
 
     $disk->write_block($self->{block},
                        AppleII::Disk::pad_block($dataLo,"\0",0x100) . $dataHi,

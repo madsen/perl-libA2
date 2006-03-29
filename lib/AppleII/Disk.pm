@@ -31,7 +31,7 @@ use bytes;
 
 BEGIN
 {
-  $VERSION = '0.05';
+  $VERSION = '0.06';
 } # end BEGIN
 
 #=====================================================================
@@ -231,6 +231,11 @@ sub read_blocks
 #---------------------------------------------------------------------
 # Write a series of ProDOS blocks:
 #
+# As a special case, block 0 cannot be written by this method.
+# Instead, that block is just skipped.  This is how sparse files are
+# implemented.  If you want to write the contents of block 0, you must
+# call $disk->write_block directly.
+#
 # Input:
 #   blocks:  An array of the block numbers to write to
 #   data:    The data to write (must be exactly the right size)
@@ -241,7 +246,7 @@ sub write_blocks
     my ($self, $blocks, $data, $pad) = @_;
     my $index = 0;
     foreach (@$blocks) {
-        $self->write_block($_, substr($data, $index, 0x200), $pad);
+        $self->write_block($_, substr($data, $index, 0x200), $pad) if $_;
         $index += 0x200;
     }
 } # end AppleII::Disk::write_blocks
@@ -548,6 +553,11 @@ data to write.  It is broken up into 512 byte chunks and written to
 the blocks.  The optional C<$pad> is a character to pad the data with
 (out to a multiple of 512 bytes).  If C<$pad> is omitted or null, then
 C<$contents> must be exactly 512 bytes times the number of blocks.
+
+As a special case, block 0 cannot be written by this method.  Instead,
+that block of C<$contents> is just skipped.  This is how sparse files
+are implemented.  If you want to write the contents of block 0, you
+must call $disk->write_block directly.
 
 =item $disk->write_sector($track, $sector, $contents, [$pad])
 
