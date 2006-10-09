@@ -31,7 +31,7 @@ require Exporter;
 @EXPORT = qw();
 @EXPORT_OK = qw(
     pack_date pack_name parse_date parse_name parse_type shell_wc
-    short_date valid_date valid_name a2_croak
+    short_date unpack_date valid_date valid_name a2_croak
 );
 
 my %vol_fields = (
@@ -268,8 +268,16 @@ sub a2_croak
 
 sub pack_date
 {
-    my ($minute,$hour,$day,$month,$year) = (localtime($_[0]))[1..5];
-    pack('vC2', (($year%100)<<9) + (($month+1)<<5) + $day, $minute, $hour);
+  if (@_ == 1) { # Unix timestamp
+    @_ = (localtime($_[0]))[5,4,3,2,1];
+    ++$_[1];
+  } elsif (@_ == 3) { # Year, Month, Day
+    push @_, 0, 0;              # Hour, Minute
+  } elsif (@_ < 5) {
+    croak "Usage: pack_date(TIMESTAMP | Y,M,D | Y,M,D,H,M)";
+  }
+
+  pack('vC2', (($_[0]%100)<<9) + ($_[1]<<5) + $_[2], @_[4,3]);
 } # end AppleII::ProDOS::pack_date
 
 #---------------------------------------------------------------------
@@ -381,6 +389,29 @@ sub short_date
     my ($year, $month, $day) = ($date>>9, (($date>>5) & 0x0F), $date & 0x1F);
     sprintf('%2d-%s-%02d %2d:%02d',$day,$months[$month-1],$year,$hour,$minute);
 } # end AppleII::ProDOS::short_date
+
+#---------------------------------------------------------------------
+# Convert a date & time to Date::Calc format:
+#
+# This is NOT a method; it's just a regular subroutine.
+#
+# Input:
+#   dateField:  The date/time field
+#
+# Returns:
+#   (YEAR, MONTH, DAY, HOUR, MINUTE)
+#   The empty list if the date is null
+
+sub unpack_date
+{
+    my ($date, $minute, $hour) = unpack('vC2', $_[0]);
+    return unless $date;
+
+    my $year = $date >> 9;
+
+    return ((($year < 77) ? $year + 2000 : $year + 1900),
+            (($date>>5) & 0x0F), $date & 0x1F, $hour, $minute);
+} # end AppleII::ProDOS::unpack_date
 
 #---------------------------------------------------------------------
 # Determine if a date is valid:
