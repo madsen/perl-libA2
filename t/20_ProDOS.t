@@ -19,7 +19,7 @@ use FindBin;
 
 use strict;
 use Test::More tests => 38;
-BEGIN { use_ok('AppleII::ProDOS') };
+BEGIN { use_ok('AppleII::ProDOS', qw(pack_date)) }
 
 #---------------------------------------------------------------------
 # Simple RLE file decompression:
@@ -139,6 +139,9 @@ my $contents = "Hello, World!\x0D" x 256;
 my $file = AppleII::ProDOS::File->new('Sample.File', $contents);
 isa_ok($file, 'AppleII::ProDOS::File', 'Sample.File $file');
 
+$file->created( pack_date(1977, 1,  1));
+$file->modified(pack_date(1999, 3, 25, 12, 34));
+
 eval { $vol->put_file($file); };
 is($@, '', "Wrote Sample.File");
 
@@ -146,7 +149,7 @@ is($vol->catalog, <<'', 'Catalog /TESTDISK/SUBDIR after write');
 Name           Type Blocks  Modified        Created            Size Subtype
 SAPLING         TXT     3  23-Mar-06 19:52 23-Mar-06 19:50      531  $0000
 SPARSE.TREE     BIN     5  24-Mar-06 15:36 24-Mar-06 15:35   131106  $1000
-SAMPLE.FILE     NON     8  <No Date>       <No Date>           3584  $0000
+SAMPLE.FILE     NON     8  25-Mar-99 12:34  1-Jan-77  0:00     3584  $0000
 Blocks free: 252     Blocks used: 28     Total blocks: 280
 
 undef $file;
@@ -173,7 +176,7 @@ is($vol->catalog, <<'', 'Catalog /TESTDISK/SUBDIR after sparser.tree');
 Name           Type Blocks  Modified        Created            Size Subtype
 SAPLING         TXT     3  23-Mar-06 19:52 23-Mar-06 19:50      531  $0000
 SPARSE.TREE     BIN     5  24-Mar-06 15:36 24-Mar-06 15:35   131106  $1000
-SAMPLE.FILE     NON     8  <No Date>       <No Date>           3584  $0000
+SAMPLE.FILE     NON     8  25-Mar-99 12:34  1-Jan-77  0:00     3584  $0000
 SPARSER.TREE    NON     5  <No Date>       <No Date>         132155  $0000
 Blocks free: 247     Blocks used: 33     Total blocks: 280
 
