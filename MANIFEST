@@ -10,10 +10,11 @@ lib/AppleII/Disk.pm		Block-level access to disk images
 lib/AppleII/ProDOS.pm		High-level functions to access ProDOS volumes
 Makefile.PL			For compatibility with MakeMaker
 MANIFEST			Please see MANIFEST
-META.yml
+META.yml			Machine-readable metadata
 README				About the files that make up LibA2
 t/10_Disk.t			Tests for AppleII::Disk
 t/20_ProDOS.t			Tests for AppleII::ProDOS
+t/30_PDsubs.t			Tests for AppleII::ProDOS subroutines
 t/compact.pl			Utility for creating compressed files
 t/testdisk.cmp			Compressed disk image for ProDOS tests
 TODO				Features that might get implemented someday
