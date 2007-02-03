@@ -1,3 +1,8 @@
+* LibA2 0.07 beta (February 3, 2003)
+
+  I discovered that the --no-scripts install option was not working.
+  Only the Build.PL script was changed; no modules were updated.
+
 * LibA2 0.06 beta (October 8, 2006)
 
   Updated modules:

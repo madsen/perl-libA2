@@ -13,7 +13,7 @@ use A2_Build;          # Our customized version of Module::Build
 
 my $build = A2_Build->new(
   dist_name          => 'LibA2',
-  dist_version       => '0.06',
+  dist_version       => '0.07',
   dist_author        => 'Christopher J. Madsen <cjm@pobox.com>',
   dist_abstract      => 'Apple II emulator & file utilities',
   license            => 'perl',
@@ -29,10 +29,11 @@ my $build = A2_Build->new(
 );
 
 chdir $FindBin::Bin or die "Unable to cd to $FindBin::Bin: $!\n";
-my @scripts = sort grep { not /~$/ } glob "bin/*"
+my @scripts;
+@scripts = sort grep { not /~$/ } glob "bin/*"
     unless $build->args('no-scripts');
 
-$build->script_files([ @scripts ]) if @scripts;
+$build->script_files(\@scripts);
 
 $build->create_build_script;
 
