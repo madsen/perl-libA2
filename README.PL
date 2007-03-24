@@ -176,7 +176,7 @@ BUGS
 	boot blocks from a bootable disk.
 
 AUTHOR
-	Christopher J. Madsen <cjm@pobox.com>
+	Christopher J. Madsen <perl AT cjmweb.net>
 EOT
 #'
 
