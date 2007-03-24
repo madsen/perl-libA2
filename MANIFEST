@@ -16,5 +16,7 @@ t/10_Disk.t			Tests for AppleII::Disk
 t/20_ProDOS.t			Tests for AppleII::ProDOS
 t/30_PDsubs.t			Tests for AppleII::ProDOS subroutines
 t/compact.pl			Utility for creating compressed files
+t/pod-coverage.t		Check for undocumented functions
+t/pod.t				Check documentation for errors
 t/testdisk.cmp			Compressed disk image for ProDOS tests
 TODO				Features that might get implemented someday

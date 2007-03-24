@@ -12,6 +12,7 @@
 ^announce.txt$
 ^blib/
 ^cjm_
+^cover_db/
 ^pm_to_blib$
 ^LibA2-\d
 ^_build\b
