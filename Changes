@@ -1,4 +1,11 @@
-* LibA2 0.07 beta (February 3, 2003)
+* LibA2 0.08 beta (March 24, 2007)
+
+  Updated my email address and some documentation.
+  Added POD tests.
+  Added another fix for the --no-scripts install option.
+  There are no functional changes.
+
+* LibA2 0.07 beta (February 3, 2007)
 
   I discovered that the --no-scripts install option was not working.
   Only the Build.PL script was changed; no modules were updated.
