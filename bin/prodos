@@ -1,6 +1,6 @@
 #! /usr/bin/perl
 #---------------------------------------------------------------------
-# $Id$
+# prodos
 # Copyright 1996 Christopher J. Madsen
 #
 # This program is free software; you can redistribute it and/or modify
@@ -16,8 +16,9 @@
 
 use AppleII::ProDOS qw(0.016 shell_wc);
 use Term::ReadLine;
+# RECOMMEND PREREQ: Term::ReadLine::Perl
 
-our $VERSION = '0.08';
+our $VERSION = '0.09';
 
 my $maxscreen = 20;
 my $pager     = $ENV{PAGER};

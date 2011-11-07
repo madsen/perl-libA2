@@ -1,0 +1,16 @@
+/.build/
+/_build/
+/blib/
+/Build
+/Build.bat
+Makefile
+/META.yml
+/MYMETA.yml
+/pm_to_blib
+LibA2-*.tar.gz
+LibA2-*/
+/test-results/
+/t/tmpdir/
+*.c
+*.obj
+*.pdb

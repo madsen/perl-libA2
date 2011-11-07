@@ -1,6 +1,5 @@
 #---------------------------------------------------------------------
-# $Id$
-package A2_Build;
+package inc::A2_Build;
 #
 # Copyright 2006 Christopher J. Madsen
 #
@@ -27,7 +26,7 @@ use base 'Module::Build';
 #=====================================================================
 # Package Global Variables:
 
-our $VERSION = '0.08';
+our $VERSION = '0.09';
 
 #=====================================================================
 
@@ -46,20 +45,6 @@ sub find_perl_interpreter
 
   return $perl;
 } # end find_perl_interpreter
-
-#---------------------------------------------------------------------
-sub ACTION_distdir
-{
-  my $self = shift @_;
-
-  my $cjm = -e 'README.PL';     # True if this is my copy
-
-  $self->do_system($^X, 'README.PL') or die "README.PL: $!" if $cjm;
-
-  $self->SUPER::ACTION_distdir(@_);
-
-  $self->do_system(qw(vernum -nr), $self->dist_dir, qw(Build.PL TODO)) if $cjm;
-} # end ACTION_distdir
 
 #=====================================================================
 # Package Return Value:

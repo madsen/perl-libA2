@@ -1,6 +1,6 @@
 #! /usr/bin/perl
 #---------------------------------------------------------------------
-# $Id$
+# pro_fmt
 # Copyright 1996-2006 Christopher J. Madsen
 #
 # This program is free software; you can redistribute it and/or modify
@@ -19,7 +19,7 @@ use AppleII::ProDOS 0.04;
 use Getopt::Long 2.10;
 use strict;
 
-our $VERSION = '0.08';
+our $VERSION = '0.09';
 
 #---------------------------------------------------------------------
 my $blocks = 280;

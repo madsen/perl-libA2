@@ -1,22 +1,25 @@
-A2_Build.pm			Customize Module::Build for LibA2
-bin/awp2txt			Convert AppleWorks word processor files to text
-bin/pro_fmt			Creates blank ProDOS disk images
-bin/pro_opt			Removes unused space from ProDOS disk images
-bin/prodos			Shell for accessing ProDOS volumes
-bin/var_display			Display strings from Applesoft BASIC VAR file
-Build.PL			Module::Build
-Changes				The revision history of LibA2
-lib/AppleII/Disk.pm		Block-level access to disk images
-lib/AppleII/ProDOS.pm		High-level functions to access ProDOS volumes
-Makefile.PL			For compatibility with MakeMaker
-MANIFEST			Please see MANIFEST
-META.yml			Machine-readable metadata
-README				About the files that make up LibA2
-t/10_Disk.t			Tests for AppleII::Disk
-t/20_ProDOS.t			Tests for AppleII::ProDOS
-t/30_PDsubs.t			Tests for AppleII::ProDOS subroutines
-t/compact.pl			Utility for creating compressed files
-t/pod-coverage.t		Check for undocumented functions
-t/pod.t				Check documentation for errors
-t/testdisk.cmp			Compressed disk image for ProDOS tests
-TODO				Features that might get implemented someday
+Build.PL
+Changes
+LICENSE
+MANIFEST
+META.json
+META.yml
+README
+TODO
+bin/awp2txt
+bin/pro_fmt
+bin/pro_opt
+bin/prodos
+bin/var_display
+dist.ini
+inc/A2_Build.pm
+lib/AppleII/Disk.pm
+lib/AppleII/ProDOS.pm
+t/10_Disk.t
+t/20_ProDOS.t
+t/30_PDsubs.t
+t/compact.pl
+t/release-pod-coverage.t
+t/release-pod-syntax.t
+t/testdisk.cmp
+tools/loom.pl

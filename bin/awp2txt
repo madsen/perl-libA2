@@ -1,6 +1,6 @@
 #! /usr/bin/perl
 #---------------------------------------------------------------------
-# $Id$
+# awp2txt
 # Copyright 1996 Christopher J. Madsen
 #
 # This program is free software; you can redistribute it and/or modify
@@ -14,7 +14,7 @@
 # Convert AppleWorks word processor files to text files
 #---------------------------------------------------------------------
 
-our $VERSION = '0.08';
+our $VERSION = '0.09';
 
 foreach $filename (@ARGV) {
     die "$filename: not a normal file" unless -f $filename;

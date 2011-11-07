@@ -1,7 +1,7 @@
 # Before `./Build install' is performed this script should be runnable with
 # `./Build test'. After `./Build install' it should work as `perl 10_Disk.t'
 #---------------------------------------------------------------------
-# $Id$
+# 10_Disk.t
 # Copyright 2006 Christopher J. Madsen
 #
 # This program is free software; you can redistribute it and/or modify

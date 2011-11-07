@@ -1,110 +1,118 @@
-* LibA2 0.08 beta (March 24, 2007)
+Revision history for LibA2
 
-  Updated my email address and some documentation.
-  Added POD tests.
-  Added another fix for the --no-scripts install option.
-  There are no functional changes.
+0.09 beta (NOT)
 
-* LibA2 0.07 beta (February 3, 2007)
+	Update metadata and link to GitHub repository
 
-  I discovered that the --no-scripts install option was not working.
-  Only the Build.PL script was changed; no modules were updated.
+0.08 beta (March 24, 2007)
 
-* LibA2 0.06 beta (October 8, 2006)
+	Updated my email address and some documentation.
+	Added POD tests.
+	Added another fix for the --no-scripts install option.
+	There are no functional changes.
 
-  Updated modules:
-    AppleII::Disk	version 0.06
-      The write_blocks method now treats block 0 specially
+0.07 beta (February 3, 2007)
 
-    AppleII::ProDOS	version 0.06
-      Can now write sparse files
-      pack_date now accepts Date::Calc format dates
-      Added unpack_date
+	I discovered that the --no-scripts install option was not working.
+	Only the Build.PL script was changed; no modules were updated.
 
-* LibA2 0.05 beta (March 27, 2006)
+0.06 beta (October 8, 2006)
 
-  Fixes for the build process (it didn't like spaces in pathnames)
-  If you got LibA2 0.04 to pass tests, you don't need to update.
+	Updated modules:
+	  AppleII::Disk	version 0.06
+	    The write_blocks method now treats block 0 specially
 
-  Updated modules:
-    AppleII::Disk	version 0.05
-      Now compatible with versions of IO::File older than 1.11
+	  AppleII::ProDOS	version 0.06
+	    Can now write sparse files
+	    pack_date now accepts Date::Calc format dates
+	    Added unpack_date
 
-* LibA2 0.04 beta (March 26, 2006)
+0.05 beta (March 27, 2006)
 
-  Now uses Module::Build instead of ExtUtils::MakeMaker
-  You can use --no-scripts with Build.PL to avoid installing utility scripts
-  Now has tests for AppleII::Disk & AppleII::ProDOS
-  Removed the .pl extension from utility scripts
+	Fixes for the build process (it didn't like spaces in pathnames)
+	If you got LibA2 0.04 to pass tests, you don't need to update.
 
-  Updated utilities:
-    prodos   		version 0.04
-      Fixed to work with current Term::ReadLine::Perl
-      Added md as an alias for mkdir
+	Updated modules:
+	  AppleII::Disk	version 0.05
+	    Now compatible with versions of IO::File older than 1.11
 
-    pro_fmt   		version 0.04
-      Now has command line options (try --help for a list)
+0.04 beta (March 26, 2006)
 
-    pro_opt   		version 0.04
-      Updated documentation
+	Now uses Module::Build instead of ExtUtils::MakeMaker
+	You can use --no-scripts with Build.PL to avoid installing
+	  utility scripts
+	Now has tests for AppleII::Disk & AppleII::ProDOS
+	Removed the .pl extension from utility scripts
 
-  Updated modules:
-    AppleII::Disk	version 0.04
-      INCOMPATIBLE CHANGE:  pad_block is now just a subroutine, not a method
-      Uses IO::File instead of FileHandle
-      The read_blocks method now treats block 0 specially
+	Updated utilities:
+	  prodos		version 0.04
+	    Fixed to work with current Term::ReadLine::Perl
+	    Added md as an alias for mkdir
 
-    AppleII::ProDOS	version 0.04
-      Can now read sparse files correctly
-      Fixed some places where filenames weren't being uppercased
-      Fixed a Y2K issue in converting timestamps to ProDOS format
+	  pro_fmt		version 0.04
+	    Now has command line options (try --help for a list)
 
-* LibA2 0.003 beta (February 26, 1997)
+	  pro_opt		version 0.04
+	    Updated documentation
 
-  First beta release of LibA2
+	Updated modules:
+	  AppleII::Disk	version 0.04
+	    INCOMPATIBLE CHANGE:
+	      pad_block is now just a subroutine, not a method
+	    Uses IO::File instead of FileHandle
+	    The read_blocks method now treats block 0 specially
 
-  New utilities:
-    var_display.pl	version 1.004
+	  AppleII::ProDOS	version 0.04
+	    Can now read sparse files correctly
+	    Fixed some places where filenames weren't being uppercased
+	    Fixed a Y2K issue in converting timestamps to ProDOS format
 
-  Updated utilities:
-    awp2txt.pl		version 0.005
-      Includes documentation
+0.003 beta (February 26, 1997)
 
-    prodos.pl		version 0.010
-      Includes documentation
-      Supports an external pager for long text displays
+	First beta release of LibA2
 
-    pro_opt.pl		version 0.004
-      Includes documentation
-      Now runs much faster
+	New utilities:
+	  var_display.pl	version 1.004
 
-  Updated modules:
-    AppleII::Disk	version 0.009
-      Includes documentation
-      Added blocks method to get/set disk size
+	Updated utilities:
+	  awp2txt.pl		version 0.005
+	    Includes documentation
 
-    AppleII::ProDOS	version 0.026
-      Includes documentation (still incomplete)
-      Adding a file to a full subdirectory automatically expands the
+	  prodos.pl		version 0.010
+	    Includes documentation
+	    Supports an external pager for long text displays
+
+	  pro_opt.pl		version 0.004
+	    Includes documentation
+	    Now runs much faster
+
+	Updated modules:
+	  AppleII::Disk	version 0.009
+	    Includes documentation
+	    Added blocks method to get/set disk size
+
+	  AppleII::ProDOS	version 0.026
+	    Includes documentation (still incomplete)
+	    Adding a file to a full subdirectory automatically expands the
 	subdirectory.
-      Allocating free blocks is now much more efficient.  This make
+	    Allocating free blocks is now much more efficient.	This make
 	the volume optimizer (pro_opt.pl) much much faster.
 
-* LibA2 0.002 alpha (August 12, 1996)
+0.002 alpha (August 12, 1996)
 
-  First public release of LibA2
+	First public release of LibA2
 
-  New utilities:
-    prodos.pl		version 0.008
-    pro_fmt.pl		version 0.003
-    pro_opt.pl		version 0.002
-    awp2txt.pl		version 0.004
+	New utilities:
+	  prodos.pl		version 0.008
+	  pro_fmt.pl		version 0.003
+	  pro_opt.pl		version 0.002
+	  awp2txt.pl		version 0.004
 
-  New modules:
-    AppleII::Disk	version 0.008
-    AppleII::ProDOS	version 0.018
+	New modules:
+	  AppleII::Disk	version 0.008
+	  AppleII::ProDOS	version 0.018
 
-* LibA2 0.001 alpha (August 12, 1996)
+0.001 alpha (August 12, 1996)
 
-  A problem during uploading caused this version to be rechristened
-  version 0.002.
+	A problem during uploading caused this version to be rechristened
+	version 0.002.

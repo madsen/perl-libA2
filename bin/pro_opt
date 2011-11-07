@@ -1,6 +1,6 @@
 #! /usr/bin/perl
 #---------------------------------------------------------------------
-# $Id$
+# pro_opt
 # Copyright 1996 Christopher J. Madsen
 #
 # This program is free software; you can redistribute it and/or modify
@@ -17,7 +17,7 @@
 use AppleII::ProDOS 0.06;
 use strict;
 
-our $VERSION = '0.08';
+our $VERSION = '0.09';
 
 my ($file1, $file2) = @ARGV;
 

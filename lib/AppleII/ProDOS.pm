@@ -5,7 +5,6 @@ package AppleII::ProDOS;
 #
 # Author: Christopher J. Madsen <perl@cjmweb.net>
 # Created: 26 Jul 1996
-# $Id$
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the same terms as Perl itself.
@@ -15,11 +14,11 @@ package AppleII::ProDOS;
 # MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See either the
 # GNU General Public License or the Artistic License for more details.
 #
-# Read/write files on ProDOS disk images
+# ABSTRACT: Access files on Apple II ProDOS disk images
 #---------------------------------------------------------------------
 
 require 5.000;
-use AppleII::Disk 0.06;
+use AppleII::Disk 0.09;
 use Carp;
 use POSIX 'mktime';
 use bytes;
@@ -54,7 +53,7 @@ my %dir_methods = (
 
 BEGIN
 {
-    $VERSION = '0.08';
+    $VERSION = '0.09';
 } # end BEGIN
 
 # Filetype list from About Apple II File Type Notes -- June 1992
@@ -1660,10 +1659,6 @@ sub AUTOLOAD
 
 __END__
 
-=head1 NAME
-
-AppleII::ProDOS - Access files on Apple II ProDOS disk images
-
 =head1 SYNOPSIS
 
     use AppleII::ProDOS;
@@ -1965,7 +1960,7 @@ C<AppleII::ProDOS::Bitmap> represents the volume bitmap.
 
 C<AppleII::ProDOS::Index> represents an index block.
 
-=head1 BUGS
+=head1 BUGS AND LIMITATIONS
 
 =over 4
 
@@ -1982,42 +1977,18 @@ converted to upper case.
 
 =back
 
-=head1 AUTHOR
-
-Christopher J. Madsen C<< <perl AT cjmweb.net> >>
-
-Please report any bugs or feature requests to
-C<< <bug-LibA2 AT rt.cpan.org> >>, or through the web interface
-at L<http://rt.cpan.org/Public/Bug/Report.html?Queue=LibA2>
-
-
-=head1 LICENSE
-
-This module is free software; you can redistribute it and/or
-modify it under the same terms as Perl itself. See L<perlartistic>.
-
-
-=head1 DISCLAIMER OF WARRANTY
-
-BECAUSE THIS SOFTWARE IS LICENSED FREE OF CHARGE, THERE IS NO WARRANTY
-FOR THE SOFTWARE, TO THE EXTENT PERMITTED BY APPLICABLE LAW. EXCEPT WHEN
-OTHERWISE STATED IN WRITING THE COPYRIGHT HOLDERS AND/OR OTHER PARTIES
-PROVIDE THE SOFTWARE "AS IS" WITHOUT WARRANTY OF ANY KIND, EITHER
-EXPRESSED OR IMPLIED, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
-WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE. THE
-ENTIRE RISK AS TO THE QUALITY AND PERFORMANCE OF THE SOFTWARE IS WITH
-YOU. SHOULD THE SOFTWARE PROVE DEFECTIVE, YOU ASSUME THE COST OF ALL
-NECESSARY SERVICING, REPAIR, OR CORRECTION.
-
-IN NO EVENT UNLESS REQUIRED BY APPLICABLE LAW OR AGREED TO IN WRITING
-WILL ANY COPYRIGHT HOLDER, OR ANY OTHER PARTY WHO MAY MODIFY AND/OR
-REDISTRIBUTE THE SOFTWARE AS PERMITTED BY THE ABOVE LICENSE, BE
-LIABLE TO YOU FOR DAMAGES, INCLUDING ANY GENERAL, SPECIAL, INCIDENTAL,
-OR CONSEQUENTIAL DAMAGES ARISING OUT OF THE USE OR INABILITY TO USE
-THE SOFTWARE (INCLUDING BUT NOT LIMITED TO LOSS OF DATA OR DATA BEING
-RENDERED INACCURATE OR LOSSES SUSTAINED BY YOU OR THIRD PARTIES OR A
-FAILURE OF THE SOFTWARE TO OPERATE WITH ANY OTHER SOFTWARE), EVEN IF
-SUCH HOLDER OR OTHER PARTY HAS BEEN ADVISED OF THE POSSIBILITY OF
-SUCH DAMAGES.
+=for Pod::Coverage
+^a2_croak$
+TODO: documentation unfinished
+^pack_date$
+^pack_name$
+^parse_date$
+^parse_name$
+^parse_type$
+^shell_wc$
+^short_date$
+^unpack_date$
+^valid_date$
+^valid_name$
 
 =cut

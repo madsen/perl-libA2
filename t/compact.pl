@@ -1,6 +1,6 @@
 #! /usr/bin/perl
 #---------------------------------------------------------------------
-# $Id$
+# compact.pl
 # Copyright 2006 Christopher J. Madsen
 #
 # This program is free software; you can redistribute it and/or modify
