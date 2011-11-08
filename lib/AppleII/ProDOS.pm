@@ -17,18 +17,17 @@ package AppleII::ProDOS;
 # ABSTRACT: Access files on Apple II ProDOS disk images
 #---------------------------------------------------------------------
 
-require 5.000;
+use 5.006;
 use AppleII::Disk 0.09;
 use Carp;
 use POSIX 'mktime';
 use bytes;
 use strict;
-use vars qw(@ISA @EXPORT @EXPORT_OK $VERSION $AUTOLOAD);
 
-require Exporter;
-@ISA = qw(AppleII::ProDOS::Members Exporter);
-@EXPORT = qw();
-@EXPORT_OK = qw(
+use Exporter 'import';
+our @ISA = qw(AppleII::ProDOS::Members);
+our @EXPORT = qw();
+our @EXPORT_OK = qw(
     pack_date pack_name parse_date parse_name parse_type shell_wc
     short_date unpack_date valid_date valid_name a2_croak
 );
@@ -51,10 +50,7 @@ my %dir_methods = (
 #=====================================================================
 # Package Global Variables:
 
-BEGIN
-{
-    $VERSION = '0.09';
-} # end BEGIN
+our $VERSION = '0.09';
 
 # Filetype list from About Apple II File Type Notes -- June 1992
 my @filetypes = qw(
@@ -230,7 +226,7 @@ sub path
 sub AUTOLOAD
 {
     my $self = $_[0];
-    my $name = $AUTOLOAD;
+    my $name = our $AUTOLOAD;
     $name =~ s/.*://;   # strip fully-qualified portion
     unless (ref($self) and exists $self->{'_dir_methods'}{$name}) {
         # Try to access a field by that name:
@@ -468,9 +464,8 @@ package AppleII::ProDOS::Bitmap;
 use Carp;
 use bytes;
 use strict;
-use vars '@ISA';
 
-@ISA = 'AppleII::ProDOS::Members';
+our @ISA = 'AppleII::ProDOS::Members';
 
 # Map ProDOS bit order to Perl's vec():
 my @adjust = (7, 5, 3, 1, -1, -3, -5, -7);
@@ -685,9 +680,8 @@ AppleII::ProDOS->import(qw(a2_croak pack_date pack_name parse_name
 use Carp;
 use bytes;
 use strict;
-use vars '@ISA';
 
-@ISA = 'AppleII::ProDOS::Members';
+our @ISA = 'AppleII::ProDOS::Members';
 
 my %dir_fields = (
     access      => 0xFF,
@@ -1156,9 +1150,8 @@ AppleII::ProDOS->import(qw(pack_date pack_name parse_name parse_type
 use integer;
 use bytes;
 use strict;
-use vars '@ISA';
 
-@ISA = 'AppleII::ProDOS::Members';
+our @ISA = 'AppleII::ProDOS::Members';
 
 my %de_fields = (
     access      => 0xFF,
@@ -1250,9 +1243,8 @@ AppleII::ProDOS->import(qw(a2_croak valid_date valid_name));
 use Carp;
 use bytes;
 use strict;
-use vars qw(@ISA);
 
-@ISA = 'AppleII::ProDOS::DirEntry';
+our @ISA = 'AppleII::ProDOS::DirEntry';
 
 my %fil_fields = (
     access      => 0xFF,
@@ -1512,9 +1504,8 @@ package AppleII::ProDOS::Index;
 use integer;
 use bytes;
 use strict;
-use vars '@ISA';
 
-@ISA = 'AppleII::ProDOS::Members';
+our @ISA = 'AppleII::ProDOS::Members';
 
 my %in_fields = (
     blocks => undef,
@@ -1621,13 +1612,12 @@ package AppleII::ProDOS::Members;
 #---------------------------------------------------------------------
 
 use Carp;
-use vars '$AUTOLOAD';
 
 sub AUTOLOAD
 {
     my $self = $_[0];
     my $type = ref($self) or croak("$self is not an object");
-    my $name = $AUTOLOAD;
+    my $name = our $AUTOLOAD;
     $name =~ s/.*://;   # strip fully-qualified portion
     my $field = $name;
     $field =~ s/_([a-z])/\u$1/g; # squash underlines into mixed case
