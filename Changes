@@ -4,6 +4,10 @@ Revision history for LibA2
 
 	Require at least Perl 5.006
 
+	Updated utilities:
+	  prodos		version 0.09
+	    Use Term::ReadLine->Attribs to set up completion
+
 0.08 beta (March 24, 2007)
 
 	Updated my email address and some documentation.

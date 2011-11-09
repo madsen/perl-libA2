@@ -16,7 +16,8 @@
 
 use AppleII::ProDOS qw(0.016 shell_wc);
 use Term::ReadLine;
-# RECOMMEND PREREQ: Term::ReadLine::Perl
+# RECOMMEND PREREQ: Term::ReadLine::Perl 0 (for completion)
+use File::Glob qw(bsd_glob);
 
 our $VERSION = '0.09';
 
@@ -25,17 +26,18 @@ my $pager     = $ENV{PAGER};
 my $shell     = $ENV{SHELL} || '/bin/sh';
 
 #---------------------------------------------------------------------
-my @commands = qw(cd dir get lcd ls ll mkdir put pwd quit type);
+my @commands = qw(cd dir exit get lcd ls ll mkdir put pwd quit type);
 
 my $term = Term::ReadLine->new('ProDOS Shell');
 
-if ($term->ReadLine eq 'Term::ReadLine::Perl') {
-    $readline::rl_basic_word_break_characters     = ". \t\n";
-    $readline::rl_completer_word_break_characters =
-    $readline::rl_completer_word_break_characters = " \t\n";
-    $readline::rl_completion_function =
-    $readline::rl_completion_function = \&complete_word;
-} # end if readline.pl
+printf "Package: %s\n", $term->ReadLine;
+
+if (my $attr = $term->Attribs) {
+  $term->ornaments(0);
+  $attr->{basic_word_break_characters}     = ". \t\n";
+  $attr->{completer_word_break_characters} = " \t\n";
+  $attr->{completion_function} = \&complete_word;
+} # end if attributes
 
 my $vol  = AppleII::ProDOS->open($ARGV[0],'w');
 
@@ -49,7 +51,7 @@ while (1) {
     my ($cmd, $arg) = /^\s*(\S+)\s*(.+?)?\s*$/;
     $cmd = lc $cmd;
     $arg = $arg || '';
-    last if $cmd =~ /^q(?:uit)?$/;
+    last if $cmd =~ /^(?:exit|q(?:uit)?)$/;
     eval {
       CMD: {
         print($vol->path,"\n"),              next CMD if $cmd eq 'pwd';
@@ -85,10 +87,24 @@ sub complete_word
 {
   my ($text, $line, $start) = @_;
   return grep(/^$text/, @commands)     if $start == 0;
-  return &readline::rl_filename_list   if $line =~ /^(?:put|lcd)\b/;
+  return complete_local_filename($text) if $line =~ /^(?:put|lcd)\b/;
   return $vol->dir->list_matches(shell_wc("$text*"),'DIR') if $line =~ /^cd\b/;
   $vol->dir->list_matches(shell_wc("$text*"),'!DIR');
 } # end complete_word
+
+#---------------------------------------------------------------------
+sub complete_local_filename
+{
+  my $pattern = shift;
+
+  my @files = bsd_glob(quotemeta($pattern) . '*');
+
+  for (@files) {
+    $_ .= '/' if -d $_;
+  }
+
+  return @files;
+} # end complete_local_filename
 
 #---------------------------------------------------------------------
 sub display
@@ -207,9 +223,9 @@ Start a subshell.
 
 =head1 REQUIREMENTS
 
-B<prodos> requires Term::ReadLine, which is now distributed with Perl.
-For best results, you should also have Term::ReadLine::Perl, which is
-available on CPAN.
+B<prodos> requires L<Term::ReadLine>, which is now distributed with Perl.
+For best results, you should also have L<Term::ReadLine::Gnu> or
+L<Term::ReadLine::Perl>, which are available on CPAN.
 
 It also requires the modules AppleII::ProDOS and AppleII::Disk,
 which are included with LibA2.
