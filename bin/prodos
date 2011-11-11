@@ -221,7 +221,7 @@ Start a subshell.
 
 =back
 
-=head1 REQUIREMENTS
+=head1 DEPENDENCIES
 
 B<prodos> requires L<Term::ReadLine>, which is now distributed with Perl.
 For best results, you should also have L<Term::ReadLine::Gnu> or
@@ -230,12 +230,12 @@ L<Term::ReadLine::Perl>, which are available on CPAN.
 It also requires the modules AppleII::ProDOS and AppleII::Disk,
 which are included with LibA2.
 
-=head1 ENVIRONMENT
+=head1 CONFIGURATION AND ENVIRONMENT
 
  PAGER	The pager to use for long displays
  SHELL	The shell to start with the ! command
 
-=head1 BUGS
+=head1 BUGS AND LIMITATIONS
 
 B<prodos> doesn't have a B<cat> command, because under ProDOS that
 means B<dir> and under Unix it means B<type>.  To avoid confusion, I
