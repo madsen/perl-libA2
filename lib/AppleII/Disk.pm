@@ -17,21 +17,17 @@ package AppleII::Disk;
 # ABSTRACT: Block-level access to Apple II disk image files
 #---------------------------------------------------------------------
 
-require 5.000;
+use 5.006;
 use Carp;
 use IO::File;
 use strict;
-use vars qw($VERSION);
 
 use bytes;
 
 #=====================================================================
 # Package Global Variables:
 
-BEGIN
-{
-  $VERSION = '0.09';
-} # end BEGIN
+our $VERSION = '0.09';
 
 #=====================================================================
 # Class AppleII::Disk:
@@ -274,9 +270,8 @@ use Carp;
 use bytes;
 use integer;
 use strict;
-use vars qw(@ISA);
 
-@ISA = qw(AppleII::Disk);
+our @ISA = qw(AppleII::Disk);
 
 #---------------------------------------------------------------------
 # Read a block from a ProDOS order disk:
@@ -350,9 +345,8 @@ use Carp;
 use bytes;
 use integer;
 use strict;
-use vars qw(@ISA);
 
-@ISA = qw(AppleII::Disk);
+our @ISA = qw(AppleII::Disk);
 
 #---------------------------------------------------------------------
 # Convert ProDOS block number to track & sectors:
