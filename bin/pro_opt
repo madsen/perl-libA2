@@ -14,8 +14,10 @@
 # Optimize a ProDOS disk image
 #---------------------------------------------------------------------
 
-use AppleII::ProDOS 0.06;
 use strict;
+use warnings;
+
+use AppleII::ProDOS 0.06;
 
 our $VERSION = '0.09';
 
@@ -83,12 +85,12 @@ than their nominal size.  That is, they expect a 280 block disk image
 file to be 143,360 bytes long.  B<pro_opt> should not be used with
 such emulators.
 
-=head1 REQUIREMENTS
+=head1 DEPENDENCIES
 
 B<pro_opt> requires the modules AppleII::ProDOS and AppleII::Disk,
 which are included with LibA2.
 
-=head1 BUGS
+=head1 BUGS AND LIMITATIONS
 
 There are no known bugs, but you should keep a copy of your old image
 file until you're sure the optimized image file works properly.

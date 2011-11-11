@@ -14,10 +14,12 @@
 # Create a blank ProDOS disk image
 #---------------------------------------------------------------------
 
+use strict;
+use warnings;
+
 use AppleII::Disk 0.04;
 use AppleII::ProDOS 0.04;
 use Getopt::Long 2.10;
-use strict;
 
 our $VERSION = '0.09';
 
@@ -119,7 +121,7 @@ creating image files for such emulators.
      --help            Display this help message
      --version         Display version information
 
-=head1 REQUIREMENTS
+=head1 DEPENDENCIES
 
 B<pro_fmt> requires the modules AppleII::ProDOS and AppleII::Disk,
 which are included with LibA2.

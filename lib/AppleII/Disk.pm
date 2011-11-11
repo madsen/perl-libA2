@@ -21,6 +21,7 @@ use 5.006;
 use Carp;
 use IO::File;
 use strict;
+use warnings;
 
 use bytes;
 
@@ -270,6 +271,7 @@ use Carp;
 use bytes;
 use integer;
 use strict;
+use warnings;
 
 our @ISA = qw(AppleII::Disk);
 
@@ -345,6 +347,7 @@ use Carp;
 use bytes;
 use integer;
 use strict;
+use warnings;
 
 our @ISA = qw(AppleII::Disk);
 

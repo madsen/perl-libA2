@@ -23,6 +23,7 @@ use Carp;
 use POSIX 'mktime';
 use bytes;
 use strict;
+use warnings;
 
 use Exporter 'import';
 our @ISA = qw(AppleII::ProDOS::Members);
@@ -464,6 +465,7 @@ package AppleII::ProDOS::Bitmap;
 use Carp;
 use bytes;
 use strict;
+use warnings;
 
 our @ISA = 'AppleII::ProDOS::Members';
 
@@ -680,6 +682,7 @@ AppleII::ProDOS->import(qw(a2_croak pack_date pack_name parse_name
 use Carp;
 use bytes;
 use strict;
+use warnings;
 
 our @ISA = 'AppleII::ProDOS::Members';
 
@@ -1150,6 +1153,7 @@ AppleII::ProDOS->import(qw(pack_date pack_name parse_name parse_type
 use integer;
 use bytes;
 use strict;
+use warnings;
 
 our @ISA = 'AppleII::ProDOS::Members';
 
@@ -1243,6 +1247,7 @@ AppleII::ProDOS->import(qw(a2_croak valid_date valid_name));
 use Carp;
 use bytes;
 use strict;
+use warnings;
 
 our @ISA = 'AppleII::ProDOS::DirEntry';
 
@@ -1504,6 +1509,7 @@ package AppleII::ProDOS::Index;
 use integer;
 use bytes;
 use strict;
+use warnings;
 
 our @ISA = 'AppleII::ProDOS::Members';
 
