@@ -9,13 +9,13 @@ LibA2 version {{$version}}, released {{$date}}{{
 sub list_mod
 {
     my $file = $_[0];
-    my $version;
-    open(PL,"<lib/$file") or die "Can't open lib/$file";
-    while (<PL>) {
-        $version = $1, last if /^\s*\$VERSION = '([0-9.]+)'/;
-    }
-    close PL;
-    die "No version for $file" unless $version;
+    my $path = "lib/$file";
+    my ($f) = grep { $_->name eq $path } @{ $zilla->files };
+
+    $f->content =~ /^\s*our\s+\$VERSION = '([0-9.]+)'/m
+      or die "No version for $file";
+    my $version = $1;
+
     $file =~ s!/!::!g;
     $file =~ s/\.pm$//;
     "\n    $file\tversion $version";
@@ -27,13 +27,13 @@ sub list_mod
 sub list_util
 {
     my $file = $_[0];
-    my $version;
-    open(PL,"<bin/$file") or die "Can't open bin/$file";
-    while (<PL>) {
-        $version = $1, last if /^our \$VERSION = '([0-9.]+)'/;
-    }
-    close PL;
-    die "No version for $file" unless $version;
+    my $path = "bin/$file";
+    my ($f) = grep { $_->name eq $path } @{ $zilla->files };
+
+    $f->content =~ /^\s*our\s+\$VERSION = '([0-9.]+)'/m
+      or die "No version for $file";
+    my $version = $1;
+
     $file .= "\t" unless length($file) > 11;
     "\n    $file\tversion $version";
 } # end list_util
