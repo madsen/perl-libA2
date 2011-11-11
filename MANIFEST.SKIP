@@ -7,7 +7,7 @@
 ^\#
 ^MANIFEST\.
 ^Makefile$
-^README.PL
+^README\.md
 ^(?i)TODO.txt
 ^announce.txt$
 ^blib/
