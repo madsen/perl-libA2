@@ -3,6 +3,7 @@ Revision history for LibA2
 0.10 beta (NOT)
 
 	Fixed Exporter prereq (need 5.57)
+	Remove IO::All from prereqs (picked up by mistake)
 
 0.09 beta (November 11, 2011)
 
