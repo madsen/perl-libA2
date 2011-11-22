@@ -1,5 +1,9 @@
 Revision history for LibA2
 
+0.10 beta (NOT)
+
+	Fixed Exporter prereq (need 5.57)
+
 0.09 beta (November 11, 2011)
 
 	Require at least Perl 5.006
