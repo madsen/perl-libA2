@@ -15,6 +15,7 @@ dist.ini
 inc/A2_Build.pm
 lib/AppleII/Disk.pm
 lib/AppleII/ProDOS.pm
+t/00-all_prereqs.t
 t/10_Disk.t
 t/20_ProDOS.t
 t/30_PDsubs.t
