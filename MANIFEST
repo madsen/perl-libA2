@@ -20,7 +20,7 @@ t/10_Disk.t
 t/20_ProDOS.t
 t/30_PDsubs.t
 t/compact.pl
-t/release-pod-coverage.t
-t/release-pod-syntax.t
 t/testdisk.cmp
 tools/loom.pl
+xt/release/pod-coverage.t
+xt/release/pod-syntax.t
