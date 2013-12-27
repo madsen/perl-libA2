@@ -1,5 +1,10 @@
 Revision history for LibA2
 
+0.11   NOT
+
+	- No functional changes
+	- Release tests moved to xt/
+
 0.10   2011-12-12 beta
 
 	- Fixed Exporter prereq (need 5.57)
