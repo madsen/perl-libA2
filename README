@@ -1,4 +1,4 @@
-LibA2 version {{$version}}, released {{$date}}{{
+AppleII-LibA2 version {{$version}}, released {{$date}}{{
   use Text::Tabs;
 
 #=====================================================================

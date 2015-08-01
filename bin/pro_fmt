@@ -11,7 +11,7 @@
 # MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See either the
 # GNU General Public License or the Artistic License for more details.
 #
-# Create a blank ProDOS disk image
+# ABSTRACT: Create a blank Apple II ProDOS disk image file
 #---------------------------------------------------------------------
 
 use strict;
@@ -21,7 +21,8 @@ use AppleII::Disk 0.04;
 use AppleII::ProDOS 0.04;
 use Getopt::Long 2.10;
 
-our $VERSION = '0.09';
+our $VERSION = '0.200';
+# This file is part of {{$dist}} {{$dist_version}} ({{$date}})
 
 #---------------------------------------------------------------------
 my $blocks = 280;
@@ -87,13 +88,9 @@ if ($bootFrom) {
 
 __END__
 
-=head1 NAME
-
-pro_fmt - Create a blank Apple II ProDOS disk image file
-
 =head1 SYNOPSIS
 
-B<pro_fmt> [options] I<FILE>
+  pro_fmt [options] FILE
 
 =head1 DESCRIPTION
 
@@ -123,45 +120,7 @@ creating image files for such emulators.
 
 =head1 DEPENDENCIES
 
-B<pro_fmt> requires the modules AppleII::ProDOS and AppleII::Disk,
-which are included with LibA2.
-
-=head1 AUTHOR
-
-Christopher J. Madsen C<< <perl AT cjmweb.net> >>
-
-Please report any bugs or feature requests to
-C<< <bug-LibA2 AT rt.cpan.org> >>, or through the web interface
-at L<http://rt.cpan.org/Public/Bug/Report.html?Queue=LibA2>
-
-
-=head1 LICENSE
-
-This module is free software; you can redistribute it and/or
-modify it under the same terms as Perl itself. See L<perlartistic>.
-
-
-=head1 DISCLAIMER OF WARRANTY
-
-BECAUSE THIS SOFTWARE IS LICENSED FREE OF CHARGE, THERE IS NO WARRANTY
-FOR THE SOFTWARE, TO THE EXTENT PERMITTED BY APPLICABLE LAW. EXCEPT WHEN
-OTHERWISE STATED IN WRITING THE COPYRIGHT HOLDERS AND/OR OTHER PARTIES
-PROVIDE THE SOFTWARE "AS IS" WITHOUT WARRANTY OF ANY KIND, EITHER
-EXPRESSED OR IMPLIED, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
-WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE. THE
-ENTIRE RISK AS TO THE QUALITY AND PERFORMANCE OF THE SOFTWARE IS WITH
-YOU. SHOULD THE SOFTWARE PROVE DEFECTIVE, YOU ASSUME THE COST OF ALL
-NECESSARY SERVICING, REPAIR, OR CORRECTION.
-
-IN NO EVENT UNLESS REQUIRED BY APPLICABLE LAW OR AGREED TO IN WRITING
-WILL ANY COPYRIGHT HOLDER, OR ANY OTHER PARTY WHO MAY MODIFY AND/OR
-REDISTRIBUTE THE SOFTWARE AS PERMITTED BY THE ABOVE LICENSE, BE
-LIABLE TO YOU FOR DAMAGES, INCLUDING ANY GENERAL, SPECIAL, INCIDENTAL,
-OR CONSEQUENTIAL DAMAGES ARISING OUT OF THE USE OR INABILITY TO USE
-THE SOFTWARE (INCLUDING BUT NOT LIMITED TO LOSS OF DATA OR DATA BEING
-RENDERED INACCURATE OR LOSSES SUSTAINED BY YOU OR THIRD PARTIES OR A
-FAILURE OF THE SOFTWARE TO OPERATE WITH ANY OTHER SOFTWARE), EVEN IF
-SUCH HOLDER OR OTHER PARTY HAS BEEN ADVISED OF THE POSSIBILITY OF
-SUCH DAMAGES.
+pro_fmt requires the modules L<AppleII::ProDOS> and L<AppleII::Disk>,
+which are included with AppleII-LibA2.
 
 =cut

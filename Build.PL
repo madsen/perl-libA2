@@ -1,16 +1,16 @@
-#! /usr/bin/perl
+#! perl
 #---------------------------------------------------------------------
-# Build.PL for LibA2
-# Copyright 2011 Christopher J. Madsen
+# Build.PL for AppleII-LibA2
+# Copyright 2015 Christopher J. Madsen
 #---------------------------------------------------------------------
 
 use inc::A2_Build;          # Our customized version of Module::Build
 
 my $build = inc::A2_Build->new(
-  dist_name          => 'LibA2',
+  dist_name          => 'AppleII-LibA2',
   dist_version       => ##{ "'$version'" ##},
   dist_author        => 'Christopher J. Madsen <perl@cjmweb.net>',
-  module_name        => 'AppleII::ProDOS', # for packlist
+  module_name        => 'AppleII::LibA2', # for packlist
 ##{ $plugin->get_prereqs ##}
   get_options        => { 'no-scripts' => undef },
   add_to_cleanup     => [ 't/tmpdir' ],

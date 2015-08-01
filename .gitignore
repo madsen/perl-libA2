@@ -7,6 +7,8 @@ Makefile
 /META.yml
 /MYMETA.yml
 /pm_to_blib
+AppleII-LibA2-*.tar.gz
+AppleII-LibA2-*/
 LibA2-*.tar.gz
 LibA2-*/
 /test-results/

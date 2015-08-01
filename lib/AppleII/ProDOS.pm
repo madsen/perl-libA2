@@ -51,7 +51,8 @@ my %dir_methods = (
 #=====================================================================
 # Package Global Variables:
 
-our $VERSION = '0.10';
+our $VERSION = '0.200';
+# This file is part of {{$dist}} {{$dist_version}} ({{$date}})
 
 # Filetype list from About Apple II File Type Notes -- June 1992
 my @filetypes = qw(

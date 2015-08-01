@@ -14,6 +14,7 @@ bin/var_display
 dist.ini
 inc/A2_Build.pm
 lib/AppleII/Disk.pm
+lib/AppleII/LibA2.pm
 lib/AppleII/ProDOS.pm
 t/00-all_prereqs.t
 t/10_Disk.t

@@ -1,4 +1,13 @@
-Revision history for LibA2
+Revision history for AppleII-LibA2 (formerly LibA2)
+
+0.200  NOT
+
+	- Distribution renamed from LibA2 to AppleII-LibA2
+
+	[NEW MODULE]
+	[AppleII::LibA2]
+	- Placeholder module matching distribution name to comply with
+	  the Lancaster Consensus
 
 0.11   2013-12-26 beta
 

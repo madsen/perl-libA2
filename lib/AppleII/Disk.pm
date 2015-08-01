@@ -28,7 +28,8 @@ use bytes;
 #=====================================================================
 # Package Global Variables:
 
-our $VERSION = '0.09';
+our $VERSION = '0.200';
+# This file is part of {{$dist}} {{$dist_version}} ({{$date}})
 
 #=====================================================================
 # Class AppleII::Disk:

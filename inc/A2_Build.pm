@@ -21,12 +21,13 @@ require 5.006;
 use strict;
 use Cwd 'abs_path';
 
-use base 'Module::Build';
+use Module::Build 0.21 ();
+our @ISA = 'Module::Build';
 
 #=====================================================================
 # Package Global Variables:
 
-our $VERSION = '0.09';
+our $VERSION = '0.200';
 
 #=====================================================================
 
