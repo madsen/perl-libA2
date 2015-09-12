@@ -17,7 +17,7 @@ package AppleII::LibA2;
 # ABSTRACT: Apple II emulator & file utilities
 #---------------------------------------------------------------------
 
-our $VERSION = '0.200';
+our $VERSION = '0.201';
 # This file is part of {{$dist}} {{$dist_version}} ({{$date}})
 
 use 5.006;
