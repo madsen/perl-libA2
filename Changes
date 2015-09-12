@@ -1,6 +1,6 @@
 Revision history for AppleII-LibA2 (formerly LibA2)
 
-0.201  NOT
+0.201  2015-09-12 beta
 
 	- Remove use of 2-argument open from scripts
 	- Add 00-load.t
