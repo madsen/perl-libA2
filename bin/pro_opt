@@ -14,12 +14,13 @@
 # ABSTRACT: Optimize an Apple II ProDOS disk image file
 #---------------------------------------------------------------------
 
+use 5.006;
 use strict;
 use warnings;
 
 use AppleII::ProDOS 0.06;
 
-our $VERSION = '0.200';
+# VERSION
 # This file is part of {{$dist}} {{$dist_version}} ({{$date}})
 
 my ($file1, $file2) = @ARGV;

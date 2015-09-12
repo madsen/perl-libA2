@@ -17,7 +17,7 @@
 # See January 1986 Nibble (Vol 7/No 1), p.76 for more about VAR files
 #---------------------------------------------------------------------
 
-our $VERSION = '0.200';
+# VERSION
 # This file is part of {{$dist}} {{$dist_version}} ({{$date}})
 #
 # Note: Due to lack of foresight, there were two early versions of

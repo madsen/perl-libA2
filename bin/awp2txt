@@ -14,7 +14,7 @@
 # ABSTRACT: Convert AppleWorks word processor files to text files
 #---------------------------------------------------------------------
 
-our $VERSION = '0.200';
+# VERSION
 # This file is part of {{$dist}} {{$dist_version}} ({{$date}})
 
 foreach $filename (@ARGV) {

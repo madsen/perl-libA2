@@ -21,7 +21,7 @@ use AppleII::Disk 0.04;
 use AppleII::ProDOS 0.04;
 use Getopt::Long 2.10;
 
-our $VERSION = '0.200';
+# VERSION
 # This file is part of {{$dist}} {{$dist_version}} ({{$date}})
 
 #---------------------------------------------------------------------
@@ -47,6 +47,7 @@ my $filename = shift @ARGV;
 defined($filename) or usage();
 
 sub usage {
+    our $VERSION ||= '(development version)';
     print "pro_fmt $VERSION\n";
     exit if $_[0] and $_[0] eq 'version';
     print "\n" . <<'';

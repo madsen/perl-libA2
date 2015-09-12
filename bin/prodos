@@ -23,7 +23,7 @@ use Term::ReadLine;
 # RECOMMEND PREREQ: Term::ReadLine::Perl 0 (for completion)
 use File::Glob qw(bsd_glob);
 
-our $VERSION = '0.200';
+# VERSION
 # This file is part of {{$dist}} {{$dist_version}} ({{$date}})
 
 my $maxscreen = 20;
