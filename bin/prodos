@@ -134,7 +134,7 @@ sub get_file
 
     my $file = $vol->get_file($arg);
 
-    open(OUT, ">$arg") or die;
+    open(OUT, '>', $arg) or die;
     binmode OUT;
     print OUT $file->data;
     close OUT;
@@ -145,7 +145,7 @@ sub put_file
 {
     my ($vol, $arg) = @_;
 
-    open(IN,"<$arg") or die;
+    open(IN, '<', $arg) or die;
     binmode IN;
     my $size = (stat IN)[7];
     my $data = '';

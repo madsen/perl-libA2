@@ -17,6 +17,11 @@
 # See January 1986 Nibble (Vol 7/No 1), p.76 for more about VAR files
 #---------------------------------------------------------------------
 
+use 5.006;
+use strict;
+use vars qw(*ARG);
+*ARG = *_;
+
 # VERSION
 # This file is part of {{$dist}} {{$dist_version}} ({{$date}})
 #
@@ -30,11 +35,7 @@
 #
 # 1.004 and 1.08 are identical to 0.09 except for the documentation.
 
-*ARG = *_;
-use strict;
-use vars qw(*ARG);
-
-open(IN,"<$ARGV[0]") or die "Unable to open `$ARGV[0]'";
+open(IN, '<', $ARGV[0]) or die "Unable to open `$ARGV[0]'";
 binmode IN;
 
 my $header = '';

@@ -14,17 +14,21 @@
 # ABSTRACT: Convert AppleWorks word processor files to text files
 #---------------------------------------------------------------------
 
+use 5.006;
+use strict;
+use warnings;
+
 # VERSION
 # This file is part of {{$dist}} {{$dist_version}} ({{$date}})
 
-foreach $filename (@ARGV) {
+foreach my $filename (@ARGV) {
     die "$filename: not a normal file" unless -f $filename;
     if (-e "$filename.txt") {
         print STDERR "$filename.txt already exists, skipping it...\n";
         next;
     }
 
-    open(IN,"<$filename") or die "Can't open `$filename'";
+    open(IN, '<', $filename) or die "Can't open `$filename'";
     binmode IN;
 
     my $header = '';
@@ -35,7 +39,7 @@ foreach $filename (@ARGV) {
         next;
     }
 
-    open(OUT,">$filename.txt") or die "Can't write `$filename.txt'";
+    open(OUT, '>', "$filename.txt") or die "Can't write `$filename.txt'";
 
     print STDERR "Converting $filename to $filename.txt...\n";
 

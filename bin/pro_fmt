@@ -14,6 +14,7 @@
 # ABSTRACT: Create a blank Apple II ProDOS disk image file
 #---------------------------------------------------------------------
 
+use 5.006;
 use strict;
 use warnings;
 
